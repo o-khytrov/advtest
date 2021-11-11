@@ -1,13 +1,13 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnChanges, OnInit, ViewChild } from '@angular/core';
 import * as tf from '@tensorflow/tfjs'
-import { TestContext } from 'src/testContext';
+import { Attack, State, TestContext } from 'src/testContext';
 import { Attacks } from 'src/attacks';
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
 })
-export class AppComponent implements OnInit {
+export class AppComponent {
   title = 'advtest';
   testContext: TestContext;
   model: tf.LayersModel;
@@ -15,10 +15,6 @@ export class AppComponent implements OnInit {
   constructor() {
     this.testContext = new TestContext();
   }
-  ngOnInit(): void {
-
-  }
-
   @ViewChild('i_model') i_model: ElementRef;
   @ViewChild('i_weights') i_weights: ElementRef;
   @ViewChild('i_test_data') i_test_data: ElementRef;
@@ -33,7 +29,6 @@ export class AppComponent implements OnInit {
       this.testContext.summary = x;
       console.log(this.testContext.summary);
     });
-
 
     await this.loadDataset();
 
@@ -50,8 +45,7 @@ export class AppComponent implements OnInit {
     let loadingNames = this.readFile(this.i_class_names.nativeElement.files[0]).then(x => this.testContext.classNames = x as string[]);
     let loadingData = Promise.all([loadingX, loadingY, loadingNames]).then(() => tf.data.zip([x, y]).toArray()).then(ds => this.dataset = ds.map(e => { return { xs: e[0], ys: e[1] } }))
     loadingData.then(async x => {
-      await this.runUntargeted(Attacks.fgsm);
-
+      this.testContext.readyForTest = true;
     })
   }
 
@@ -65,47 +59,45 @@ export class AppComponent implements OnInit {
       fr.readAsText(file);
     });
   }
-  async drawImg(img, element, attackName, msg, success = undefined) {
-    //let canvas = document.(attackName).getElementsByClassName(element)[0];
-    var canvas = document.createElement('canvas') as HTMLCanvasElement;
+  async drawImg(img) {
+    const canvas = document.createElement('canvas');
     let resizedImg = tf.image.resizeNearestNeighbor(img.reshape([32, 32, 3]), [64, 64]);
     await tf.browser.toPixels(resizedImg, canvas);
+    return canvas.toDataURL(); // will return the base64 encoding
 
-    if (msg !== undefined) {
-      var div = document.createElement('div');
-      div.innerHTML = msg;
-    }
-    if (success === true) {
-      canvas.style.borderColor = 'lime';
-      canvas.style.borderWidth = '2px';
-    }
-    var body = document.getElementsByTagName("body")[0];
-    body.appendChild(canvas);
   }
   async runUntargeted(attack) {
-    let successes = 0;
-
-    for (let i = 0; i < 10; i++) { // For each row
+    for (let i = 0; i < this.dataset.length; i++) {
       let img = this.dataset[i].xs;
       let lbl = this.dataset[i].ys;
+      let p_original = (this.model.predict(img) as tf.Tensor);
+      let conf_original = p_original.max(1).dataSync()[0];
+      let cl_original = p_original.argMax(1).dataSync()[0];
 
-      console.log(`untargeted ${i}`)
-      let p = (this.model.predict(img) as tf.Tensor).dataSync()[i];
-      await this.drawImg(img, i.toString(), attack.name, `Pred: ${this.testContext.classNames[i]}<br/>Prob: ${p.toFixed(3)}`);
+      this.testContext.reports.get(attack.name)[i].originalPrediction =
+        this.testContext.classNames[cl_original];
+
+      this.testContext.reports.get(attack.name)[i].originalConfidence = conf_original;
+
+      var orImageB64 = await this.drawImg(img);
+
+      this.testContext.reports.get(attack.name)[i].orImage = orImageB64;
 
       // Generate adversarial image from attack
       let aimg = tf.tidy(() => attack(this.model, img, lbl));
 
       // Display adversarial image and its probability
-      p = (this.model.predict(aimg) as tf.Tensor).max(1).dataSync()[0];
-      let albl = (this.model.predict(aimg) as tf.Tensor).argMax(1).dataSync()[0];
-      let oldlbl = lbl.argMax(1).dataSync()[0];
-      if (albl !== oldlbl) {
-        successes++;
-        await this.drawImg(aimg, `${i}a`, attack.name, `Pred: ${this.testContext.classNames[albl]}<br/>Prob: ${p.toFixed(3)}`, true);
-      } else {
-        await this.drawImg(aimg, `${i}a`, attack.name, `Pred: ${this.testContext.classNames[albl]}<br/>Prob: ${p.toFixed(3)}`);
-      }
+      let p_adversarial = (this.model.predict(aimg) as tf.Tensor);
+      let conf_adv = p_adversarial.max(1).dataSync()[0];
+      let cl_adv = p_adversarial.argMax(1).dataSync()[0];
+
+      this.testContext.reports.get(attack.name)[i].advConfidence = conf_adv;
+      this.testContext.reports.get(attack.name)[i].advPrediction =
+        this.testContext.classNames[cl_adv];
+
+      var advImgB64 = await this.drawImg(aimg);
+      this.testContext.reports.get(attack.name)[i].advImage = advImgB64;
+      this.reportProgres(i + 1, this.dataset.length);
     }
 
     // document.getElementById(`${attack.name}-success-rate`).innerText = `Success rate: ${(successes / 10).toFixed(1)}`;
@@ -132,5 +124,26 @@ export class AppComponent implements OnInit {
       }
 
     }
+  }
+  async runTest() {
+    this.testContext.attackInProgress = true;
+    this.testContext.reports = new Map<string, Attack[]>();
+    if (this.testContext.fasm) {
+
+      var attacks = new Array<Attack>();
+      for (var i = 0; i < this.dataset.length; i++) {
+        attacks.push(new Attack());
+      }
+
+      this.testContext.reports.set(Attacks.fgsm.name, attacks);
+
+      await this.runUntargeted(Attacks.fgsm);
+    }
+
+    this.testContext.attackInProgress = false;
+
+  }
+  reportProgres(progres, total) {
+    this.testContext.progress = progres / total * 100;
   }
 }

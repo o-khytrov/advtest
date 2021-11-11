@@ -1,46 +1,130 @@
 <div class="container">
-    <div class="input-group">
-        <div class="custom-file">
-            <input #i_model type="file" class="custom-file-input" id="i_model" accept=".json" (change)="onFileChange($event)">
-            <label class="custom-file-label" for="i_model">Model</label>
-        </div>
-    </div>
-    <div class="input-group mt-2">
-        <div class="custom-file">
-            <input #i_weights type="file" class="custom-file-input" id="i_weights" accept=".bin" (change)="onFileChange($event)">
-            <label class="custom-file-label" for="i_weights">Weights</label>
-        </div>
-    </div>
-    <div class="input-group mt-2">
-        <div class="custom-file">
-            <input #i_test_data type="file" class="custom-file-input" id="i_test_data" (change)="onFileChange($event)">
-            <label class="custom-file-label" for="i_test_data">Test data</label>
-        </div>
-    </div>
-    <div class="input-group mt-2">
-        <div class="custom-file">
-            <input #i_labels type="file" class="custom-file-input" id="i_labels" (change)="onFileChange($event)">
-            <label class="custom-file-label" for="i_labels">Labels</label>
-        </div>
-    </div>
-    <div class="input-group mt-2">
-        <div class="custom-file">
-            <input #i_class_names type="file" class="custom-file-input" id="i_class_names" (change)="onFileChange($event)">
-            <label class="custom-file-label" for="i_class_names">Class names</label>
-        </div>
-    </div>
-    <div class="row">
-        <div class="col-6"></div>
-        <div class="col-6">
-            <button class="btn btn-primary" (click)="loadModel()">Submit</button>
-        </div>
-    </div>
-    <table *ngIf="testContext.classNames">
-        <tr *ngFor="let x of testContext.testData; index as i;">
-            <td>{{i}}</td>
-            <td>{{testContext.classNames[i]}}</td>
-        </tr>
-    </table>
+    <div class="card" *ngIf="!model">
+        <div class="card-body">
+            <h5 class="card-title">Import Model</h5>
+            <div class="input-group">
+                <div class="custom-file">
+                    <input #i_model type="file" class="custom-file-input" id="i_model" accept=".json" (change)="onFileChange($event)">
+                    <label class="custom-file-label" for="i_model">Model</label>
+                </div>
+            </div>
+            <div class="input-group mt-2">
+                <div class="custom-file">
+                    <input #i_weights type="file" class="custom-file-input" id="i_weights" accept=".bin" (change)="onFileChange($event)">
+                    <label class="custom-file-label" for="i_weights">Weights</label>
+                </div>
+            </div>
+            <div class="input-group mt-2">
+                <div class="custom-file">
+                    <input #i_test_data type="file" class="custom-file-input" id="i_test_data" (change)="onFileChange($event)">
+                    <label class="custom-file-label" for="i_test_data">Test data</label>
+                </div>
+            </div>
+            <div class="input-group mt-2">
+                <div class="custom-file">
+                    <input #i_labels type="file" class="custom-file-input" id="i_labels" (change)="onFileChange($event)">
+                    <label class="custom-file-label" for="i_labels">Labels</label>
+                </div>
+            </div>
+            <div class="input-group mt-2">
+                <div class="custom-file">
+                    <input #i_class_names type="file" class="custom-file-input" id="i_class_names" (change)="onFileChange($event)">
+                    <label class="custom-file-label" for="i_class_names">Class names</label>
+                </div>
+            </div>
+            <div class="row mt-2" *ngIf="!model">
+                <div class="col-6"></div>
+                <div class="col-6">
+                    <button class="btn btn-primary" (click)="loadModel()">Import</button>
+                </div>
+            </div>
 
-    <button class="btn btn-light" (click)="loadDataset()">LoadImage</button>
+        </div>
+    </div>
+    <div id="config" *ngIf="testContext.readyForTest">
+        <div class="form-group row">
+            <div class="col-sm-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="cb_fasm" [checked]="testContext.fasm" (change)="testContext.fasm=!testContext.fasm">
+                    <label class="form-check-label " for="cb_fasm">Fasm</label>
+                </div>
+            </div>
+            <div *ngIf="testContext.fasm" class="col-sm-6 ">
+                <div class="form-group">
+                    <input type="range">
+                </div>
+            </div>
+        </div>
+        <div class="form-group row">
+            <div class="col-sm-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="cb_jsma" [checked]="testContext.jsma" (change)="testContext.jsma=!testContext.jsma">
+                    <label class="form-check-label " for="cb_jsma">JSMA</label>
+                </div>
+            </div>
+            <div *ngIf="testContext.jsma" class="col-sm-6">
+                <div class="form-group">
+                    <input type="range">
+                </div>
+            </div>
+        </div>
+        <div class="form-group row">
+            <div class="col-sm-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="cb_bim" [checked]="testContext.bim" (change)="testContext.bim=!testContext.bim">
+                    <label class="form-check-label " for="cb_bim">BIM</label>
+                </div>
+            </div>
+            <div *ngIf="testContext.bim" class="col-sm-6">
+                <div class="form-group">
+                    <input type="range">
+                </div>
+            </div>
+        </div>
+        <div class="form-group row">
+            <div class="col-sm-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="cb_cw" [checked]="testContext.cw" (change)="testContext.cw=!testContext.cw">
+                    <label class="form-check-label " for="cb_bim">C&W</label>
+                </div>
+            </div>
+            <div *ngIf="testContext.cw" class="col-sm-6">
+                <div class="form-group">
+                    <input type="range">
+                </div>
+            </div>
+        </div>
+        <div class="row mt-2" *ngIf="testContext.readyForTest">
+            <div class="col-6"></div>
+            <div class="col-6">
+                <button class="btn btn-success" (click)="runTest()">Run Tests</button>
+            </div>
+        </div>
+
+    </div>
+    <p *ngIf="testContext.attackInProgress">
+        <ngb-progressbar type="info " [value]="testContext.progress " [striped]="true "></ngb-progressbar>
+    </p>
+
+    <div id="report" *ngIf="testContext.reports">
+        <div class="attack" *ngFor="let r of testContext.reports | keyvalue">
+            <div>{{r.key}}</div>
+            <div class="row">
+                <div class="col-6">Original Sample</div>
+                <div class="col-6">Adversarial Sample</div>
+            </div>
+            <div *ngFor="let a of r.value; let i = index" class="row">
+                <div class="col-6">
+                    <img src="{{a.orImage}}">
+                    <p>{{a.originalPrediction}}</p>
+                    <p>{{a.originalConfidence}}</p>
+                </div>
+                <div class="col-6">
+                    <img src="{{a.advImage}}">
+                    <p>{{a.advPrediction}}</p>
+                    <p>{{a.advConfidence}}</p>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
