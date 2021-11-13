@@ -1,1 +1,18 @@
 /* You can add global styles to this file, and also import other style files */
+
+.image {
+    width: 150px;
+}
+
+.attack-case {
+    margin-bottom: 3px;
+}
+
+.image-container {
+    text-align: center;
+    margin: 2px;
+}
+
+.slider {
+    width: 100%;
+}

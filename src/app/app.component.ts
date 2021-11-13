@@ -1,6 +1,6 @@
 import { Component, ElementRef, OnChanges, OnInit, ViewChild } from '@angular/core';
 import * as tf from '@tensorflow/tfjs'
-import { Attack, State, TestContext } from 'src/testContext';
+import { Attack, BimConfig, Config, FgsmConfig, State, TestContext } from 'src/testContext';
 import { Attacks } from 'src/attacks';
 @Component({
   selector: 'app-root',
@@ -8,12 +8,32 @@ import { Attacks } from 'src/attacks';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
+
+
+  canvas = document.createElement('canvas');
   title = 'advtest';
   testContext: TestContext;
   model: tf.LayersModel;
   dataset: any;
   constructor() {
     this.testContext = new TestContext();
+    this.testContext.config = new Config();
+
+    this.testContext.config.fgsm = new FgsmConfig();
+    this.testContext.config.fgsm.epsilon = 0.1;
+
+    this.testContext.config.bim = new BimConfig();
+    this.testContext.config.bim.epsilon = 0.1;
+    this.testContext.config.bim.alpha = 0.01;
+    this.testContext.config.bim.iterations = 10;
+  }
+  getEuclidianDistance(arr1, arr2) {
+    // calculate euclidian distance between two arrays
+    let distTensor = tf.tidy(() => {
+      const distance = tf.squaredDifference(arr1, arr2).sum().sqrt();
+      return distance.dataSync()
+    })
+    return distTensor[0];
   }
   @ViewChild('i_model') i_model: ElementRef;
   @ViewChild('i_weights') i_weights: ElementRef;
@@ -59,14 +79,14 @@ export class AppComponent {
       fr.readAsText(file);
     });
   }
-  async drawImg(img) {
-    const canvas = document.createElement('canvas');
-    let resizedImg = tf.image.resizeNearestNeighbor(img.reshape([32, 32, 3]), [64, 64]);
-    await tf.browser.toPixels(resizedImg, canvas);
-    return canvas.toDataURL(); // will return the base64 encoding
+  async getDataUrl(img) {
+
+    var shape = img.shape;
+    await tf.browser.toPixels(img.reshape(shape.slice(1)), this.canvas);
+    return this.canvas.toDataURL();
 
   }
-  async runUntargeted(attack) {
+  async runUntargeted(attack, config) {
     for (let i = 0; i < this.dataset.length; i++) {
       let img = this.dataset[i].xs;
       let lbl = this.dataset[i].ys;
@@ -79,15 +99,15 @@ export class AppComponent {
 
       this.testContext.reports.get(attack.name)[i].originalConfidence = conf_original;
 
-      var orImageB64 = await this.drawImg(img);
+      var orImageB64 = await this.getDataUrl(img);
 
       this.testContext.reports.get(attack.name)[i].orImage = orImageB64;
 
       // Generate adversarial image from attack
-      let aimg = tf.tidy(() => attack(this.model, img, lbl));
+      let attackResult = tf.tidy(() => attack(this.model, img, lbl, config));
 
       // Display adversarial image and its probability
-      let p_adversarial = (this.model.predict(aimg) as tf.Tensor);
+      let p_adversarial = (this.model.predict(attackResult.advImg) as tf.Tensor);
       let conf_adv = p_adversarial.max(1).dataSync()[0];
       let cl_adv = p_adversarial.argMax(1).dataSync()[0];
 
@@ -95,54 +115,124 @@ export class AppComponent {
       this.testContext.reports.get(attack.name)[i].advPrediction =
         this.testContext.classNames[cl_adv];
 
-      var advImgB64 = await this.drawImg(aimg);
+      this.testContext.reports.get(attack.name)[i].euclidianDistance = this.getEuclidianDistance(attackResult.advImg, img);
+      var advImgB64 = await this.getDataUrl(attackResult.advImg);
       this.testContext.reports.get(attack.name)[i].advImage = advImgB64;
+      if (attackResult.delta) {
+
+        var deltaB64 = await this.getDataUrl(attackResult.delta);
+        this.testContext.reports.get(attack.name)[i].delta = deltaB64;
+      }
+
       this.reportProgres(i + 1, this.dataset.length);
     }
 
     // document.getElementById(`${attack.name}-success-rate`).innerText = `Success rate: ${(successes / 10).toFixed(1)}`;
   }
-  async targetedAttack(attack) {
+  async targetedAttack(attack, config) {
 
-    for (let i = 0; i < this.dataset.length; i++) {
+    let a = 0;
+    for (let i = 0; i < 1; i++) {
       let img = this.dataset[i].xs;
       let lbl = this.dataset[i].ys;
-      let p = (this.model.predict(img) as tf.Tensor).dataSync()[i];
-      //draw image
+      let p_original = (this.model.predict(img) as tf.Tensor);
+      let conf_original = p_original.max(1).dataSync()[0];
+      let cl_original = p_original.argMax(1).dataSync()[0];
+
+      var orImageB64 = await this.getDataUrl(img);
       for (let j = 0; j < this.dataset.length; j++) {
         if (j == (lbl.argMax(1) as tf.Tensor).dataSync[0]) {
-
-          //don't run attack if the target class is the original class 
           continue;
         }
+        let targetLbl = tf.oneHot(j, this.dataset.length).reshape([1, this.dataset.length]);
+        this.testContext.reports.get(attack.name)[a].originalPrediction =
+          this.testContext.classNames[cl_original];
 
-        let targetLbl = tf.oneHot(j, 10).reshape([1, this.dataset.length]);
-        let aimg = tf.tidy(() => attack(this.model, img, lbl, targetLbl,))
-        let shape = aimg.shape.slice(1);
-        let resizedImg = tf.image.resizeNearestNeighbor(aimg.reshape(shape), [64, 64]);
-        tf.browser.toPixels(resizedImg, document.getElementById('') as HTMLCanvasElement);
+        this.testContext.reports.get(attack.name)[a].originalConfidence = conf_original;
+
+
+        this.testContext.reports.get(attack.name)[a].orImage = orImageB64;
+
+        // Generate adversarial image from attack
+        let attackResult = tf.tidy(() => attack(this.model, img, lbl, targetLbl, config));
+
+        // Display adversarial image and its probability
+        let p_adversarial = (this.model.predict(attackResult.advImg) as tf.Tensor);
+        let conf_adv = p_adversarial.max(1).dataSync()[0];
+        let cl_adv = p_adversarial.argMax(1).dataSync()[0];
+
+        this.testContext.reports.get(attack.name)[a].advConfidence = conf_adv;
+        this.testContext.reports.get(attack.name)[a].advPrediction =
+          this.testContext.classNames[cl_adv];
+
+        var advImgB64 = await this.getDataUrl(attackResult.advImg);
+        this.testContext.reports.get(attack.name)[a].advImage = advImgB64;
+
+        this.testContext.reports.get(attack.name)[a].euclidianDistance = this.getEuclidianDistance(attackResult.advImg, img);
+        if (attackResult.delta) {
+
+          var deltaB64 = await this.getDataUrl(attackResult.delta);
+          this.testContext.reports.get(attack.name)[a].delta = deltaB64;
+        }
+
+
+        a++;
+
       }
 
     }
   }
   async runTest() {
     this.testContext.attackInProgress = true;
+    this.testContext.progress = 0;
     this.testContext.reports = new Map<string, Attack[]>();
-    if (this.testContext.fasm) {
 
-      var attacks = new Array<Attack>();
-      for (var i = 0; i < this.dataset.length; i++) {
-        attacks.push(new Attack());
-      }
+    if (this.testContext.fgsm) {
 
-      this.testContext.reports.set(Attacks.fgsm.name, attacks);
-
-      await this.runUntargeted(Attacks.fgsm);
+      this.BuildReport(Attacks.fgsm.name);
+      await this.runUntargeted(Attacks.fgsm, this.testContext.config.fgsm);
     }
+
+    if (this.testContext.bim) {
+
+      this.BuildReport(Attacks.bim.name);
+      await this.runUntargeted(Attacks.bim, this.testContext.config.bim);
+    }
+
+    if (this.testContext.jsma) {
+
+      this.BuildReportForTargeted(Attacks.jsma.name);
+      await this.targetedAttack(Attacks.jsma, this.testContext.config.fgsm);
+    }
+
+    if (this.testContext.cw) {
+
+      this.BuildReportForTargeted(Attacks.cw.name);
+      await this.targetedAttack(Attacks.cw, this.testContext.config.fgsm);
+    }
+
 
     this.testContext.attackInProgress = false;
 
   }
+  private BuildReportForTargeted(attackName) {
+    var attacks = new Array<Attack>();
+    for (var i = 0; i < this.dataset.length; i++) {
+      for (var j = 0; j < this.dataset.length; j++) {
+
+        attacks.push(new Attack());
+      }
+    }
+    this.testContext.reports.set(attackName, attacks);
+  }
+  private BuildReport(attackName) {
+    var attacks = new Array<Attack>();
+    for (var i = 0; i < this.dataset.length; i++) {
+      attacks.push(new Attack());
+    }
+    this.testContext.reports.set(attackName, attacks);
+  }
+
   reportProgres(progres, total) {
     this.testContext.progress = progres / total * 100;
   }

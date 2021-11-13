@@ -1,5 +1,9 @@
 
 import * as tf from '@tensorflow/tfjs';
+export class AttackResult {
+    delta: tf.Tensor;
+    advImg: tf.Tensor;
+}
 export class Attacks {
     /**
  * Fast Gradient Sign Method (FGSM)
@@ -17,7 +21,8 @@ export class Attacks {
  *
  * @returns {tf.Tensor} The adversarial image.
  */
-    public static fgsm(model, img, lbl, { ε = 0.1 } = {}) {
+    public static fgsm(model, img, lbl, config) {
+        console.log(config);
         // Loss function that measures how close the image is to the original class
         function loss(input) {
             return tf.metrics.categoricalCrossentropy(lbl, model.predict(input));  // Make input farther from original class
@@ -25,10 +30,12 @@ export class Attacks {
 
         // Perturb the image for one step in the direction of INCREASING loss
         let grad = tf.grad(loss);
-        let delta = tf.sign(grad(img)).mul(ε);
-        img = img.add(delta).clipByValue(0, 1);
+        let delta = tf.sign(grad(img)).mul(config.epsilon)
+        let result = new AttackResult();
+        result.delta = delta.clipByValue(0, 255);
+        result.advImg = img.add(delta).clipByValue(0, 1);
 
-        return img;
+        return result;
     }
 
     /**
@@ -76,7 +83,12 @@ export class Attacks {
         let delta = tf.sign(grad(img)).mul(ε);
         img = img.sub(delta).clipByValue(0, 1);
 
-        return img;
+        let result = new AttackResult();
+        result.delta = delta;
+        result.advImg = img;
+
+        return result;
+
     }
 
     /**
@@ -99,7 +111,10 @@ export class Attacks {
      *
      * @returns {tf.Tensor} The adversarial image.
      */
-    public static bim(model, img, lbl, { ε = 0.1, α = 0.01, iters = 10 } = {}) {
+    public static bim(model, img, lbl, config) {
+        let ε = config.epsilon;
+        let α = config.alpha;
+
         // Loss function that measures how close the image is to the original class
         function loss(input) {
             return tf.metrics.categoricalCrossentropy(lbl, model.predict(input));  // Make input farther from original class
@@ -110,13 +125,15 @@ export class Attacks {
 
         // Run PGD to MAXIMIZE the loss w.r.t. aimg
         let grad = tf.grad(loss);
-        for (let i = 0; i < iters; i++) {
+        for (let i = 0; i < config.iterations; i++) {
             let delta = tf.sign(grad(aimg)).mul(α);
             aimg = aimg.add(delta);
             aimg = tf.minimum(1, tf.minimum(img.add(ε), tf.maximum(0, tf.maximum(img.sub(ε), aimg))));  // Clips aimg to ε distance of img
         }
 
-        return aimg;
+        let result = new AttackResult();
+        result.advImg = aimg;
+        return result;
     }
 
     /**
@@ -252,7 +269,7 @@ export class Attacks {
      *
      * @returns {tf.Tensor} The adversarial image.
      */
-    jsma(model, img, lbl, targetLbl, { ε = 28 } = {}) {
+    public static jsma(model, img, lbl, targetLbl, { ε = 28 } = {}) {
         // Compute useful constants
         let NUM_PIXELS = img.flatten().shape[0];      // Number of pixels in the image (for RGB, each channel counts as one "pixel")
         let LT = targetLbl.argMax(1).arraySync()[0];  // Target label as an index rather than a one-hot vector
@@ -319,7 +336,9 @@ export class Attacks {
             aimg = tf.tensor(imgArr, img.shape);
         }
 
-        return aimg;
+        var result = new AttackResult;
+        result.advImg = aimg;
+        return result;
     }
 
     /**
@@ -374,8 +393,16 @@ export class Attacks {
             opt.minimize(cwObjective as () => tf.Scalar, false, [w]);
         }
 
+        let result = new AttackResult;
         // Map w back into an image and return it
-        return tf.mul(tf.add(tf.tanh(w), 1), 0.5);
+        result.advImg = tf.mul(tf.add(tf.tanh(w), 1), 0.5);
+        return result;
+    }
+    public static DifferentialEvolution(model, img, lbl, targeLbl) {
+        let numberOfPixels = 1;
+        let pupultaion 
+
+
     }
 
     /************************************************************************

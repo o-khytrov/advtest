@@ -41,64 +41,76 @@
 
         </div>
     </div>
-    <div id="config" *ngIf="testContext.readyForTest">
-        <div class="form-group row">
-            <div class="col-sm-3">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="cb_fasm" [checked]="testContext.fasm" (change)="testContext.fasm=!testContext.fasm">
-                    <label class="form-check-label " for="cb_fasm">Fasm</label>
-                </div>
-            </div>
-            <div *ngIf="testContext.fasm" class="col-sm-6 ">
-                <div class="form-group">
-                    <input type="range">
-                </div>
-            </div>
+    <div class="card" id="config" *ngIf="testContext.readyForTest">
+        <div class="card-header text-center">
+            Test configuration
         </div>
-        <div class="form-group row">
-            <div class="col-sm-3">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="cb_jsma" [checked]="testContext.jsma" (change)="testContext.jsma=!testContext.jsma">
-                    <label class="form-check-label " for="cb_jsma">JSMA</label>
+        <div class="card-body">
+            <div class="form-group row">
+                <div class="col-sm-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="cb_fgsm" [checked]="testContext.fgsm" (change)="testContext.fgsm=!testContext.fgsm">
+                        <label class="form-check-label " for="cb_fgsm">Fasm</label>
+                    </div>
+                </div>
+                <div *ngIf="testContext.fgsm" class="col-sm-6 ">
+                    <div class="form-group">
+                        <label>Epsilon {{testContext.config.fgsm.epsilon}}</label>
+                        <input class="slider" type="range" [(ngModel)]="testContext.config.fgsm.epsilon" min="0.001" max="0.7" step="0.001">
+                    </div>
                 </div>
             </div>
-            <div *ngIf="testContext.jsma" class="col-sm-6">
-                <div class="form-group">
-                    <input type="range">
+            <div class="form-group row">
+                <div class="col-sm-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="cb_jsma" [checked]="testContext.jsma" (change)="testContext.jsma=!testContext.jsma">
+                        <label class="form-check-label " for="cb_jsma">JSMA</label>
+                    </div>
+                </div>
+                <div *ngIf="testContext.jsma" class="col-sm-6">
+                    <div class="form-group">
+                        <input type="range">
+                    </div>
                 </div>
             </div>
+            <div class="form-group row">
+                <div class="col-sm-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="cb_bim" [checked]="testContext.bim" (change)="testContext.bim=!testContext.bim">
+                        <label class="form-check-label " for="cb_bim">BIM</label>
+                    </div>
+                </div>
+                <div *ngIf="testContext.bim" class="col-sm-6">
+                    <div class="form-group">
+                        <label>Epsilon {{testContext.config.bim.epsilon}}</label>
+                        <input class="slider" type="range" [(ngModel)]="testContext.config.bim.epsilon" min="0.001" max="0.7" step="0.001">
+
+                        <label>Alpha {{testContext.config.bim.alpha}}</label>
+                        <input class="slider" type="range" [(ngModel)]="testContext.config.bim.alpha" min="0.001" max="0.7" step="0.001">
+
+                        <label>Iterations {{testContext.config.bim.iterations}}</label>
+                        <input class="slider" type="range" [(ngModel)]="testContext.config.bim.iterations" min="1" max="100" step="1">
+
+                    </div>
+                </div>
+            </div>
+            <div class="form-group row">
+                <div class="col-sm-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="cb_cw" [checked]="testContext.cw" (change)="testContext.cw=!testContext.cw">
+                        <label class="form-check-label " for="cb_bim">C&W</label>
+                    </div>
+                </div>
+                <div *ngIf="testContext.cw" class="col-sm-6">
+                    <div class="form-group">
+                        <input type="range">
+                    </div>
+                </div>
+            </div>
+
         </div>
-        <div class="form-group row">
-            <div class="col-sm-3">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="cb_bim" [checked]="testContext.bim" (change)="testContext.bim=!testContext.bim">
-                    <label class="form-check-label " for="cb_bim">BIM</label>
-                </div>
-            </div>
-            <div *ngIf="testContext.bim" class="col-sm-6">
-                <div class="form-group">
-                    <input type="range">
-                </div>
-            </div>
-        </div>
-        <div class="form-group row">
-            <div class="col-sm-3">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="cb_cw" [checked]="testContext.cw" (change)="testContext.cw=!testContext.cw">
-                    <label class="form-check-label " for="cb_bim">C&W</label>
-                </div>
-            </div>
-            <div *ngIf="testContext.cw" class="col-sm-6">
-                <div class="form-group">
-                    <input type="range">
-                </div>
-            </div>
-        </div>
-        <div class="row mt-2" *ngIf="testContext.readyForTest">
-            <div class="col-6"></div>
-            <div class="col-6">
-                <button class="btn btn-success" (click)="runTest()">Run Tests</button>
-            </div>
+        <div class="text-center" *ngIf="testContext.readyForTest">
+            <button class="btn btn-success mb-5" (click)="runTest()">Run Tests</button>
         </div>
 
     </div>
@@ -107,23 +119,72 @@
     </p>
 
     <div id="report" *ngIf="testContext.reports">
-        <div class="attack" *ngFor="let r of testContext.reports | keyvalue">
-            <div>{{r.key}}</div>
-            <div class="row">
-                <div class="col-6">Original Sample</div>
-                <div class="col-6">Adversarial Sample</div>
+        <div class="card attack" *ngFor="let r of testContext.reports | keyvalue">
+            <div class="card-header">
+                {{r.key}}
             </div>
-            <div *ngFor="let a of r.value; let i = index" class="row">
-                <div class="col-6">
-                    <img src="{{a.orImage}}">
-                    <p>{{a.originalPrediction}}</p>
-                    <p>{{a.originalConfidence}}</p>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-4">Original Sample</div>
+                    <div class="col-4">Perturbation</div>
+                    <div class="col-4">Adversarial Sample</div>
                 </div>
-                <div class="col-6">
-                    <img src="{{a.advImage}}">
-                    <p>{{a.advPrediction}}</p>
-                    <p>{{a.advConfidence}}</p>
+                <div *ngFor="let a of r.value; let i = index" class="row attack-case">
+                    <div class="col-4">
+                        <div class="image-container">
+                            <img class="image img-thumbnail" src="{{a.orImage}}">
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                Prediction
+                            </div>
+                            <div class="col-6">
+                                {{a.originalPrediction}}
+                            </div>
+                            <div class="col-6">
+                                Confidence
+                            </div>
+                            <div class="col-6">
+                                {{a.originalConfidence}}
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="col-4">
+                        <div class="image-container">
+                            <img class="image img-thumbnail" src="{{a.delta}}">
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="image-container">
+                            <img class="image img-thumbnail" src="{{a.advImage}}">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6">
+                                Prediction
+                            </div>
+                            <div class="col-6">
+                                {{a.advPrediction}}
+                            </div>
+                            <div class="col-6">
+                                Confidence
+                            </div>
+                            <div class="col-6">
+                                {{a.advConfidence}}
+                            </div>
+                            <div class="col-6">
+                                Euclidian distance
+                            </div>
+                            <div class="col-6">
+                                {{a.euclidianDistance}}
+                            </div>
+
+                        </div>
+
+                    </div>
                 </div>
+
             </div>
         </div>
     </div>
