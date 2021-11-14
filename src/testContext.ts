@@ -42,6 +42,7 @@ export class Attack {
     advPrediction: string;
     advConfidence: number;
     euclidianDistance: number;
+    chebyshevDistance: number;
 }
 
 export class Source {

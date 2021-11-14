@@ -38,16 +38,23 @@ export class AppComponent implements OnInit {
     return Math.random();
   }
 
+  chebyshevDistanse(a: tf.Tensor, b: tf.Tensor) {
+    let c = tf.sub(a, b);
+    let d = tf.abs(c).max().dataSync()[0];
+    c.dispose();
+    console.log(d);
+    return d;
+  }
+
   perturb(xs, img) {
 
   }
   async ngOnInit() {
-
   }
-  getEuclidianDistance(arr1, arr2) {
+  euclidianDistance(a: tf.Tensor, b: tf.Tensor) {
     // calculate euclidian distance between two arrays
     let distTensor = tf.tidy(() => {
-      const distance = tf.squaredDifference(arr1, arr2).sum().sqrt();
+      const distance = tf.squaredDifference(a, b).sum().sqrt();
       return distance.dataSync()
     })
     return distTensor[0];
@@ -58,8 +65,6 @@ export class AppComponent implements OnInit {
   @ViewChild('i_labels') i_labels: ElementRef;
   @ViewChild('i_class_names') i_class_names: ElementRef;
 
-  async loadModeFromFs() {
-  }
   async loadModel() {
 
     this.model = await tf.loadLayersModel(tf.io.browserFiles([this.i_model.nativeElement.files[0], this.i_weights.nativeElement.files[0]]));
@@ -167,7 +172,8 @@ export class AppComponent implements OnInit {
     this.testContext.reports.get(attackName)[a].advConfidence = conf_adv;
     this.testContext.reports.get(attackName)[a].advPrediction =
       this.testContext.classNames[cl_adv];
-    this.testContext.reports.get(attackName)[a].euclidianDistance = this.getEuclidianDistance(attackResult.advImg, source.originalImage);
+    this.testContext.reports.get(attackName)[a].euclidianDistance = this.euclidianDistance(attackResult.advImg, source.originalImage);
+    this.testContext.reports.get(attackName)[a].chebyshevDistance = this.chebyshevDistanse(attackResult.advImg, source.originalImage);
     var advImgB64 = await this.getDataUrl(attackResult.advImg);
     this.testContext.reports.get(attackName)[a].advImage = advImgB64;
 
