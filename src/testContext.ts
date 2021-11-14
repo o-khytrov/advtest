@@ -1,5 +1,6 @@
 import { TypeFlags } from "typescript";
 import * as tf from '@tensorflow/tfjs'
+import { BimConfig, CwConfig, FgsmConfig } from "./attacks";
 
 export class TestContext {
     readyForTest: boolean;
@@ -10,35 +11,28 @@ export class TestContext {
     images: Array<string>;
     progress: number;
     attackInProgress: boolean;
+
     fgsm: boolean;
     jsma: boolean;
     bim: boolean;
     cw: boolean;
+    diffEvol: boolean;
+
     reports: Map<string, Attack[]>;
-    state: State
     config: Config;
-    constructor() {
-        this.state = State.Blank;
-    }
 }
 
 export class Config {
     fgsm: FgsmConfig;
     bim: BimConfig;
+    cw: CwConfig;
 }
 
-export class FgsmConfig {
-    epsilon: number;
-}
-export class BimConfig {
-    epsilon: number;
-    alpha: number;
-    iterations: number;
-}
 
 
 export class Attack {
 
+    targetClass: string;
     originalPrediction: string;
     originalConfidence: number;
     orImage: string;
@@ -49,8 +43,9 @@ export class Attack {
     advConfidence: number;
     euclidianDistance: number;
 }
-export enum State {
-    Blank = 0,
-    Building = 1,
-    DomReady = 2
+
+export class Source {
+    originalImage: tf.Tensor;
+    originalConfidence: number;
+    originalClassName: string;
 }

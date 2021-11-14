@@ -57,8 +57,10 @@ export class Attacks {
      *
      * @returns {tf.Tensor} The adversarial image.
      */
-    public static fgsmTargeted(model, img, lbl, targetLbl, { ε = 0.1, loss = 2 } = {}) {
+    public static fgsmTargeted(model, img, lbl, targetLbl, config) {
         // Loss functions (of increasing complexity) that measure how close the image is to the target class
+        let ε = 0.1;
+        let loss = 2;
         function loss0(input) {
             return tf.metrics.categoricalCrossentropy(targetLbl, model.predict(input));  // Make input closer to target class
         }
@@ -84,7 +86,7 @@ export class Attacks {
         img = img.sub(delta).clipByValue(0, 1);
 
         let result = new AttackResult();
-        result.delta = delta;
+        //result.delta = delta;
         result.advImg = img;
 
         return result;
@@ -156,8 +158,13 @@ export class Attacks {
      *
      * @returns {tf.Tensor} The adversarial image.
      */
-    public static bimTargeted(model, img, lbl, targetLbl, { ε = 0.1, α = 0.01, iters = 10, loss = 1 } = {}) {
+    public static bimTargeted(model, img, lbl, targetLbl, config) {
+        let ε = config.epsilon;
+        let α = config.alpha;;
+        let iters = config.iterations;
+        let loss = 1
         // Loss functions (of increasing complexity) that measure how close the image is to the target class
+
         function loss0(input) {
             return tf.metrics.categoricalCrossentropy(targetLbl, model.predict(input));  // Make input closer to target class
         }
@@ -177,7 +184,9 @@ export class Attacks {
             aimg = tf.minimum(1, tf.minimum(img.add(ε), tf.maximum(0, tf.maximum(img.sub(ε), aimg))));  // Clips aimg to ε distance of img
         }
 
-        return aimg;
+        var result = new AttackResult;
+        result.advImg = aimg;
+        return result;
     }
 
     /**
@@ -356,15 +365,13 @@ export class Attacks {
      * @param {tf.Tensor} img - The input image to construct an adversarial example for.
      * @param {tf.Tensor} lbl - The correct label of the image (must have shape [1, NUM_CLASSES]).
      * @param {tf.Tensor} targetLbl - The desired adversarial label of the image (must have shape [1, NUM_CLASSES]).
-     * @param {Object} config - Optional configuration for this attack.
-     * @param {number} config.c - Higher = higher success rate, but higher distortion.
-     * @param {number} config.κ - Higher = more confident adv example.
-     * @param {number} config.λ - Higher learning rate = faster convergence, but higher distortion.
-     * @param {number} config.iters - Number of iterations of gradient descent (Adam).
-     *
      * @returns {tf.Tensor} The adversarial image.
      */
-    public static cw(model, img, lbl, targetLbl, { c = 5, κ = 1, λ = 0.1, iters = 100 } = {}) {
+    public static cw(model, img, lbl, targetLbl, config: CwConfig) {
+        let c = config.successRate;
+        let κ = config.confidenceRate;
+        let λ = config.learningRate;
+        let iters = config.iterations;
         // C&W requires using logits, rather than softmax class probabilities
         let modelLogits = Attacks.getModelLogits(model);
 
@@ -398,9 +405,13 @@ export class Attacks {
         result.advImg = tf.mul(tf.add(tf.tanh(w), 1), 0.5);
         return result;
     }
+    private static perturbt(xs, img) {
+        let copy = img;
+    }
     public static DifferentialEvolution(model, img, lbl, targeLbl) {
         let numberOfPixels = 1;
-        let pupultaion 
+        let pupultaion = new Array<tf.Tensor>();
+
 
 
     }
@@ -448,4 +459,34 @@ export class Attacks {
         return logitsModel;
     }
 
+}
+export class FgsmConfig {
+    epsilon: number;
+    targeted: boolean;
+}
+/*
+     * @param {Object} config - Optional configuration for this attack.
+     * @param {number} config.c - Higher = higher success rate, but higher distortion.
+     * @param {number} config.κ - Higher = more confident adv example.
+     * @param {number} config.λ - Higher learning rate = faster convergence, but higher distortion.
+     * @param {number} config.iters - Number of iterations of gradient descent (Adam).
+ 
+*/
+//Config for C&W Attack
+export class CwConfig {
+    //Higher = higher success rate, but higher distortion.
+    successRate: number;
+    //Higher = more confident adv example.
+    confidenceRate: number;
+    //Higher learning rate = faster convergence, but higher distortion.
+    learningRate: number;
+    //Number of iterations
+    iterations: number;
+}
+
+export class BimConfig {
+    epsilon: number;
+    alpha: number;
+    iterations: number;
+    targeted: boolean;
 }

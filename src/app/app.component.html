@@ -1,5 +1,8 @@
+<nav class="navbar navbar-light bg-light">
+    <a class="navbar-brand" href="#">Tesing neural network robustness</a>
+</nav>
 <div class="container">
-    <div class="card" *ngIf="!model">
+    <div class="card mt-2" *ngIf="!model">
         <div class="card-body">
             <h5 class="card-title">Import Model</h5>
             <div class="input-group">
@@ -46,7 +49,7 @@
             Test configuration
         </div>
         <div class="card-body">
-            <div class="form-group row">
+            <div class="form-group row border p-2">
                 <div class="col-sm-3">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="cb_fgsm" [checked]="testContext.fgsm" (change)="testContext.fgsm=!testContext.fgsm">
@@ -55,12 +58,16 @@
                 </div>
                 <div *ngIf="testContext.fgsm" class="col-sm-6 ">
                     <div class="form-group">
-                        <label>Epsilon {{testContext.config.fgsm.epsilon}}</label>
+                        <label>Epsilon {{testContext.config.fgsm.epsilon}} <small>(Max L_inf distance (each pixel can change up to this amount)</small></label>
                         <input class="slider" type="range" [(ngModel)]="testContext.config.fgsm.epsilon" min="0.001" max="0.7" step="0.001">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="cb_fgsm_targeted" [checked]="testContext.config.fgsm.targeted" (change)="testContext.config.fgsm.targeted=!testContext.config.fgsm.targeted">
+                        <label class="form-check-label " for="cb_fgsm_targeted">Targeted</label>
                     </div>
                 </div>
             </div>
-            <div class="form-group row">
+            <div class="form-group row border p-2">
                 <div class="col-sm-3">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="cb_jsma" [checked]="testContext.jsma" (change)="testContext.jsma=!testContext.jsma">
@@ -73,7 +80,7 @@
                     </div>
                 </div>
             </div>
-            <div class="form-group row">
+            <div class="form-group row border p-2">
                 <div class="col-sm-3">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="cb_bim" [checked]="testContext.bim" (change)="testContext.bim=!testContext.bim">
@@ -82,19 +89,24 @@
                 </div>
                 <div *ngIf="testContext.bim" class="col-sm-6">
                     <div class="form-group">
-                        <label>Epsilon {{testContext.config.bim.epsilon}}</label>
+                        <label>Epsilon {{testContext.config.bim.epsilon}} <small>(Max L_inf distance (each pixel can change up to this amount)</small></label>
                         <input class="slider" type="range" [(ngModel)]="testContext.config.bim.epsilon" min="0.001" max="0.7" step="0.001">
 
-                        <label>Alpha {{testContext.config.bim.alpha}}</label>
+                        <label>Alpha {{testContext.config.bim.alpha}} <small>(Learning rate for gradient descent.)</small></label>
                         <input class="slider" type="range" [(ngModel)]="testContext.config.bim.alpha" min="0.001" max="0.7" step="0.001">
 
                         <label>Iterations {{testContext.config.bim.iterations}}</label>
                         <input class="slider" type="range" [(ngModel)]="testContext.config.bim.iterations" min="1" max="100" step="1">
 
                     </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="cb_bim_targeted" [checked]="testContext.config.bim.targeted" (change)="testContext.config.bim.targeted=!testContext.config.bim.targeted">
+                        <label class="form-check-label " for="cb_bim_targeted">Targeted</label>
+                    </div>
+
                 </div>
             </div>
-            <div class="form-group row">
+            <div class="form-group row border p-2">
                 <div class="col-sm-3">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="cb_cw" [checked]="testContext.cw" (change)="testContext.cw=!testContext.cw">
@@ -103,10 +115,32 @@
                 </div>
                 <div *ngIf="testContext.cw" class="col-sm-6">
                     <div class="form-group">
+                        <label>Success rate {{testContext.config.cw.successRate}} <small>(Higher = higher success rate, but higher distortion.)</small></label>
+                        <input class="slider" type="range" [(ngModel)]="testContext.config.cw.successRate" min="1" max="10" step="1">
+
+                        <label>Confidence rate {{testContext.config.cw.confidenceRate}} <small>(Higher = more confident adv example.)</small></label>
+                        <input class="slider" type="range" [(ngModel)]="testContext.config.cw.confidenceRate" min="0.1" max="10" step="0.1">
+
+                        <label>Iterations {{testContext.config.cw.iterations}}</label>
+                        <input class="slider" type="range" [(ngModel)]="testContext.config.cw.iterations" min="1" max="200" step="1">
+
+                    </div>
+                </div>
+            </div>
+            <div class="form-group row border p-2">
+                <div class="col-sm-3">
+                    <div class="form-check">
+                        <input class="form-check-input" disabled="disabled" type="checkbox" id="cb_cw" [checked]="testContext.diffEvol" (change)="testContext.diffEvol=!testContext.diffEvol">
+                        <label class="form-check-label " for="cb_bim">Differential Evolution</label>
+                    </div>
+                </div>
+                <div *ngIf="testContext.diffEvol" class="col-sm-6">
+                    <div class="form-group">
                         <input type="range">
                     </div>
                 </div>
             </div>
+
 
         </div>
         <div class="text-center" *ngIf="testContext.readyForTest">
@@ -124,17 +158,17 @@
                 {{r.key}}
             </div>
             <div class="card-body">
-                <div class="row">
+                <div class="row text-center">
                     <div class="col-4">Original Sample</div>
                     <div class="col-4">Perturbation</div>
                     <div class="col-4">Adversarial Sample</div>
                 </div>
-                <div *ngFor="let a of r.value; let i = index" class="row attack-case">
+                <div *ngFor="let a of r.value; let i = index" class="row attack-case border">
                     <div class="col-4">
                         <div class="image-container">
                             <img class="image img-thumbnail" src="{{a.orImage}}">
                         </div>
-                        <div class="row">
+                        <div class="row small">
                             <div class="col-6">
                                 Prediction
                             </div>
@@ -160,7 +194,13 @@
                             <img class="image img-thumbnail" src="{{a.advImage}}">
                         </div>
 
-                        <div class="row">
+                        <div class="row small">
+                            <div *ngIf="a.targetClass" class="col-6">
+                                Target class
+                            </div>
+                            <div *ngIf="a.targetClass" class="col-6">
+                                {{a.targetClass}}
+                            </div>
                             <div class="col-6">
                                 Prediction
                             </div>

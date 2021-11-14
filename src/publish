@@ -1,0 +1,2 @@
+ ng build --prod --base-href "https://o-khytrov.github.io/advtest/"
+  npx angular-cli-ghpages --dir=dist/advtest

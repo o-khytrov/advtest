@@ -1,14 +1,14 @@
 import { Component, ElementRef, OnChanges, OnInit, ViewChild } from '@angular/core';
 import * as tf from '@tensorflow/tfjs'
-import { Attack, BimConfig, Config, FgsmConfig, State, TestContext } from 'src/testContext';
-import { Attacks } from 'src/attacks';
+import { Attack, Config, Source, TestContext } from 'src/testContext';
+import { AttackResult, Attacks, BimConfig, CwConfig, FgsmConfig } from 'src/attacks';
+import { couldStartTrivia } from 'typescript';
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
 })
-export class AppComponent {
-
+export class AppComponent implements OnInit {
 
   canvas = document.createElement('canvas');
   title = 'advtest';
@@ -25,7 +25,24 @@ export class AppComponent {
     this.testContext.config.bim = new BimConfig();
     this.testContext.config.bim.epsilon = 0.1;
     this.testContext.config.bim.alpha = 0.01;
-    this.testContext.config.bim.iterations = 10;
+    this.testContext.config.bim.iterations = 30;
+
+    this.testContext.config.cw = new CwConfig();
+    this.testContext.config.cw.successRate = 5;
+    this.testContext.config.cw.confidenceRate = 1;
+    this.testContext.config.cw.learningRate = 0.1;
+    this.testContext.config.cw.iterations = 100;
+
+  }
+  getRandomInt(max) {
+    return Math.random();
+  }
+
+  perturb(xs, img) {
+
+  }
+  async ngOnInit() {
+
   }
   getEuclidianDistance(arr1, arr2) {
     // calculate euclidian distance between two arrays
@@ -41,6 +58,8 @@ export class AppComponent {
   @ViewChild('i_labels') i_labels: ElementRef;
   @ViewChild('i_class_names') i_class_names: ElementRef;
 
+  async loadModeFromFs() {
+  }
   async loadModel() {
 
     this.model = await tf.loadLayersModel(tf.io.browserFiles([this.i_model.nativeElement.files[0], this.i_weights.nativeElement.files[0]]));
@@ -94,94 +113,70 @@ export class AppComponent {
       let conf_original = p_original.max(1).dataSync()[0];
       let cl_original = p_original.argMax(1).dataSync()[0];
 
-      this.testContext.reports.get(attack.name)[i].originalPrediction =
-        this.testContext.classNames[cl_original];
+      let source = new Source();
+      source.originalClassName = this.testContext.classNames[cl_original];
+      source.originalConfidence = conf_original;
+      source.originalImage = img;
 
-      this.testContext.reports.get(attack.name)[i].originalConfidence = conf_original;
-
-      var orImageB64 = await this.getDataUrl(img);
-
-      this.testContext.reports.get(attack.name)[i].orImage = orImageB64;
-
-      // Generate adversarial image from attack
       let attackResult = tf.tidy(() => attack(this.model, img, lbl, config));
 
-      // Display adversarial image and its probability
-      let p_adversarial = (this.model.predict(attackResult.advImg) as tf.Tensor);
-      let conf_adv = p_adversarial.max(1).dataSync()[0];
-      let cl_adv = p_adversarial.argMax(1).dataSync()[0];
-
-      this.testContext.reports.get(attack.name)[i].advConfidence = conf_adv;
-      this.testContext.reports.get(attack.name)[i].advPrediction =
-        this.testContext.classNames[cl_adv];
-
-      this.testContext.reports.get(attack.name)[i].euclidianDistance = this.getEuclidianDistance(attackResult.advImg, img);
-      var advImgB64 = await this.getDataUrl(attackResult.advImg);
-      this.testContext.reports.get(attack.name)[i].advImage = advImgB64;
-      if (attackResult.delta) {
-
-        var deltaB64 = await this.getDataUrl(attackResult.delta);
-        this.testContext.reports.get(attack.name)[i].delta = deltaB64;
-      }
-
+      await this.fillReport(source, attack.name, i, attackResult);
       this.reportProgres(i + 1, this.dataset.length);
     }
 
-    // document.getElementById(`${attack.name}-success-rate`).innerText = `Success rate: ${(successes / 10).toFixed(1)}`;
   }
-  async targetedAttack(attack, config) {
+  async runTargeted(attack, config) {
 
     let a = 0;
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < this.dataset.length; i++) {
       let img = this.dataset[i].xs;
       let lbl = this.dataset[i].ys;
       let p_original = (this.model.predict(img) as tf.Tensor);
       let conf_original = p_original.max(1).dataSync()[0];
       let cl_original = p_original.argMax(1).dataSync()[0];
+      let source = new Source();
+      source.originalClassName = this.testContext.classNames[cl_original];
+      source.originalConfidence = conf_original;
+      source.originalImage = img;
 
-      var orImageB64 = await this.getDataUrl(img);
       for (let j = 0; j < this.dataset.length; j++) {
-        if (j == (lbl.argMax(1) as tf.Tensor).dataSync[0]) {
-          continue;
-        }
-        let targetLbl = tf.oneHot(j, this.dataset.length).reshape([1, this.dataset.length]);
-        this.testContext.reports.get(attack.name)[a].originalPrediction =
-          this.testContext.classNames[cl_original];
+        if (j == i) continue;//skip same class
+        let targetLbl = this.dataset[j].ys;
+        let targetLblIndex = targetLbl.argMax(1).dataSync()[0];
 
-        this.testContext.reports.get(attack.name)[a].originalConfidence = conf_original;
-
-
-        this.testContext.reports.get(attack.name)[a].orImage = orImageB64;
-
-        // Generate adversarial image from attack
         let attackResult = tf.tidy(() => attack(this.model, img, lbl, targetLbl, config));
 
-        // Display adversarial image and its probability
-        let p_adversarial = (this.model.predict(attackResult.advImg) as tf.Tensor);
-        let conf_adv = p_adversarial.max(1).dataSync()[0];
-        let cl_adv = p_adversarial.argMax(1).dataSync()[0];
-
-        this.testContext.reports.get(attack.name)[a].advConfidence = conf_adv;
-        this.testContext.reports.get(attack.name)[a].advPrediction =
-          this.testContext.classNames[cl_adv];
-
-        var advImgB64 = await this.getDataUrl(attackResult.advImg);
-        this.testContext.reports.get(attack.name)[a].advImage = advImgB64;
-
-        this.testContext.reports.get(attack.name)[a].euclidianDistance = this.getEuclidianDistance(attackResult.advImg, img);
-        if (attackResult.delta) {
-
-          var deltaB64 = await this.getDataUrl(attackResult.delta);
-          this.testContext.reports.get(attack.name)[a].delta = deltaB64;
-        }
-
+        await this.fillReport(source, attack.name, a, attackResult);
+        this.testContext.reports.get(attack.name)[a].targetClass =
+          this.testContext.classNames[targetLblIndex];
 
         a++;
-
+        this.reportProgres(a + 1, this.dataset.length * this.dataset.length);
       }
 
     }
   }
+  async fillReport(source: Source, attackName: string, a: number, attackResult: AttackResult) {
+    let p_adversarial = (this.model.predict(attackResult.advImg) as tf.Tensor);
+    let conf_adv = p_adversarial.max(1).dataSync()[0];
+    let cl_adv = p_adversarial.argMax(1).dataSync()[0];
+    this.testContext.reports.get(attackName)[a].originalPrediction = source.originalClassName;
+    this.testContext.reports.get(attackName)[a].originalConfidence = source.originalConfidence;
+    var orImageB64 = await this.getDataUrl(source.originalImage);
+    this.testContext.reports.get(attackName)[a].orImage = orImageB64;
+    this.testContext.reports.get(attackName)[a].advConfidence = conf_adv;
+    this.testContext.reports.get(attackName)[a].advPrediction =
+      this.testContext.classNames[cl_adv];
+    this.testContext.reports.get(attackName)[a].euclidianDistance = this.getEuclidianDistance(attackResult.advImg, source.originalImage);
+    var advImgB64 = await this.getDataUrl(attackResult.advImg);
+    this.testContext.reports.get(attackName)[a].advImage = advImgB64;
+
+    if (attackResult.delta) {
+      var deltaB64 = await this.getDataUrl(attackResult.delta);
+      this.testContext.reports.get(attackName)[a].delta = deltaB64;
+    }
+  }
+
   async runTest() {
     this.testContext.attackInProgress = true;
     this.testContext.progress = 0;
@@ -189,28 +184,46 @@ export class AppComponent {
 
     if (this.testContext.fgsm) {
 
-      this.BuildReport(Attacks.fgsm.name);
-      await this.runUntargeted(Attacks.fgsm, this.testContext.config.fgsm);
+      if (this.testContext.config.fgsm.targeted) {
+        this.BuildReportForTargeted(Attacks.fgsmTargeted.name);
+        await this.runTargeted(Attacks.fgsmTargeted, this.testContext.config.fgsm);
+
+      }
+      else {
+        this.BuildReport(Attacks.fgsm.name);
+        await this.runUntargeted(Attacks.fgsm, this.testContext.config.fgsm);
+
+      }
     }
 
     if (this.testContext.bim) {
+      if (this.testContext.config.bim.targeted) {
+        this.BuildReportForTargeted(Attacks.bimTargeted.name)
+        await this.runTargeted(Attacks.bimTargeted, this.testContext.config.bim);
+      }
+      else {
+        this.BuildReport(Attacks.bim.name);
+        await this.runUntargeted(Attacks.bim, this.testContext.config.bim);
 
-      this.BuildReport(Attacks.bim.name);
-      await this.runUntargeted(Attacks.bim, this.testContext.config.bim);
+      }
     }
 
     if (this.testContext.jsma) {
 
       this.BuildReportForTargeted(Attacks.jsma.name);
-      await this.targetedAttack(Attacks.jsma, this.testContext.config.fgsm);
+      await this.runTargeted(Attacks.jsma, this.testContext.config.fgsm);
     }
 
     if (this.testContext.cw) {
 
       this.BuildReportForTargeted(Attacks.cw.name);
-      await this.targetedAttack(Attacks.cw, this.testContext.config.fgsm);
+      await this.runTargeted(Attacks.cw, this.testContext.config.cw);
     }
 
+    if (this.testContext.diffEvol) {
+      this.BuildReportForTargeted(Attacks.DifferentialEvolution.name);
+      await this.runTargeted(Attacks.DifferentialEvolution, this.testContext.config.fgsm);
+    }
 
     this.testContext.attackInProgress = false;
 
@@ -219,8 +232,7 @@ export class AppComponent {
     var attacks = new Array<Attack>();
     for (var i = 0; i < this.dataset.length; i++) {
       for (var j = 0; j < this.dataset.length; j++) {
-
-        attacks.push(new Attack());
+        if (j != i) attacks.push(new Attack());
       }
     }
     this.testContext.reports.set(attackName, attacks);
