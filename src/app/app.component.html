@@ -19,19 +19,19 @@
             </div>
             <div class="input-group mt-2">
                 <div class="custom-file">
-                    <input #i_test_data type="file" class="custom-file-input" id="i_test_data" (change)="onFileChange($event)">
+                    <input #i_test_data type="file" class="custom-file-input" id="i_test_data" (change)="onFileChange($event)" accept=".json">
                     <label class="custom-file-label" for="i_test_data">Test data</label>
                 </div>
             </div>
             <div class="input-group mt-2">
                 <div class="custom-file">
-                    <input #i_labels type="file" class="custom-file-input" id="i_labels" (change)="onFileChange($event)">
+                    <input #i_labels type="file" class="custom-file-input" id="i_labels" (change)="onFileChange($event)" accept=".json">
                     <label class="custom-file-label" for="i_labels">Labels</label>
                 </div>
             </div>
             <div class="input-group mt-2">
                 <div class="custom-file">
-                    <input #i_class_names type="file" class="custom-file-input" id="i_class_names" (change)="onFileChange($event)">
+                    <input #i_class_names type="file" class="custom-file-input" id="i_class_names" (change)="onFileChange($event)" accept=".json">
                     <label class="custom-file-label" for="i_class_names">Class names</label>
                 </div>
             </div>
@@ -76,8 +76,10 @@
                 </div>
                 <div *ngIf="testContext.jsma" class="col-sm-6">
                     <div class="form-group">
-                        <input type="range">
+                        <label>Epsilon {{testContext.config.jsma.epsilon}} <small>(Max L0 distance (we can change up to this many pixels).)</small></label>
+                        <input class="slider" type="range" [(ngModel)]="testContext.config.jsma.epsilon" min="20" max="100" step="1">
                     </div>
+
                 </div>
             </div>
             <div class="form-group row border p-2">
@@ -224,6 +226,12 @@
                             </div>
                             <div class="col-6">
                                 {{a.chebyshevDistance}}
+                            </div>
+                            <div class="col-6">
+                                Peak signal-to-noise ratio
+                            </div>
+                            <div class="col-6">
+                                {{a.psnr}}
                             </div>
                         </div>
                     </div>

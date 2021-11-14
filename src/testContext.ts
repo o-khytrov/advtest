@@ -1,6 +1,5 @@
-import { TypeFlags } from "typescript";
 import * as tf from '@tensorflow/tfjs'
-import { BimConfig, CwConfig, FgsmConfig } from "./attacks";
+import { BimConfig, CwConfig, FgsmConfig, JsmaConfig } from "./attacks";
 
 export class TestContext {
     readyForTest: boolean;
@@ -18,7 +17,7 @@ export class TestContext {
     cw: boolean;
     diffEvol: boolean;
 
-    reports: Map<string, Attack[]>;
+    reports: Map<string, TestCase[]>;
     config: Config;
 }
 
@@ -26,11 +25,12 @@ export class Config {
     fgsm: FgsmConfig;
     bim: BimConfig;
     cw: CwConfig;
+    jsma: JsmaConfig;
 }
 
 
 
-export class Attack {
+export class TestCase {
 
     targetClass: string;
     originalPrediction: string;
@@ -43,6 +43,7 @@ export class Attack {
     advConfidence: number;
     euclidianDistance: number;
     chebyshevDistance: number;
+    psnr: number;
 }
 
 export class Source {

@@ -1,8 +1,9 @@
-import { Component, ElementRef, OnChanges, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import * as tf from '@tensorflow/tfjs'
-import { Attack, Config, Source, TestContext } from 'src/testContext';
-import { AttackResult, Attacks, BimConfig, CwConfig, FgsmConfig } from 'src/attacks';
-import { couldStartTrivia } from 'typescript';
+import { TestCase, Config, Source, TestContext } from 'src/testContext';
+import { AttackResult, Attacks, BimConfig, CwConfig, FgsmConfig, JsmaConfig } from 'src/attacks';
+import { Metrics } from 'src/metrics';
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -10,17 +11,32 @@ import { couldStartTrivia } from 'typescript';
 })
 export class AppComponent implements OnInit {
 
+  @ViewChild('i_model') i_model: ElementRef;
+  @ViewChild('i_weights') i_weights: ElementRef;
+  @ViewChild('i_test_data') i_test_data: ElementRef;
+  @ViewChild('i_labels') i_labels: ElementRef;
+  @ViewChild('i_class_names') i_class_names: ElementRef;
+
   canvas = document.createElement('canvas');
   title = 'advtest';
   testContext: TestContext;
   model: tf.LayersModel;
   dataset: any;
+
   constructor() {
+    this.InitializeTestContext();
+  }
+
+  private InitializeTestContext() {
     this.testContext = new TestContext();
     this.testContext.config = new Config();
 
     this.testContext.config.fgsm = new FgsmConfig();
     this.testContext.config.fgsm.epsilon = 0.1;
+
+    this.testContext.config.jsma = new JsmaConfig();
+    this.testContext.config.jsma.epsilon = 75;
+
 
     this.testContext.config.bim = new BimConfig();
     this.testContext.config.bim.epsilon = 0.1;
@@ -32,39 +48,10 @@ export class AppComponent implements OnInit {
     this.testContext.config.cw.confidenceRate = 1;
     this.testContext.config.cw.learningRate = 0.1;
     this.testContext.config.cw.iterations = 100;
-
-  }
-  getRandomInt(max) {
-    return Math.random();
   }
 
-  chebyshevDistanse(a: tf.Tensor, b: tf.Tensor) {
-    let c = tf.sub(a, b);
-    let d = tf.abs(c).max().dataSync()[0];
-    c.dispose();
-    console.log(d);
-    return d;
-  }
-
-  perturb(xs, img) {
-
-  }
   async ngOnInit() {
   }
-  euclidianDistance(a: tf.Tensor, b: tf.Tensor) {
-    // calculate euclidian distance between two arrays
-    let distTensor = tf.tidy(() => {
-      const distance = tf.squaredDifference(a, b).sum().sqrt();
-      return distance.dataSync()
-    })
-    return distTensor[0];
-  }
-  @ViewChild('i_model') i_model: ElementRef;
-  @ViewChild('i_weights') i_weights: ElementRef;
-  @ViewChild('i_test_data') i_test_data: ElementRef;
-  @ViewChild('i_labels') i_labels: ElementRef;
-  @ViewChild('i_class_names') i_class_names: ElementRef;
-
   async loadModel() {
 
     this.model = await tf.loadLayersModel(tf.io.browserFiles([this.i_model.nativeElement.files[0], this.i_weights.nativeElement.files[0]]));
@@ -103,13 +90,13 @@ export class AppComponent implements OnInit {
       fr.readAsText(file);
     });
   }
-  async getDataUrl(img) {
 
+  async getDataUrl(img) {
     var shape = img.shape;
     await tf.browser.toPixels(img.reshape(shape.slice(1)), this.canvas);
     return this.canvas.toDataURL();
-
   }
+
   async runUntargeted(attack, config) {
     for (let i = 0; i < this.dataset.length; i++) {
       let img = this.dataset[i].xs;
@@ -165,16 +152,18 @@ export class AppComponent implements OnInit {
     let p_adversarial = (this.model.predict(attackResult.advImg) as tf.Tensor);
     let conf_adv = p_adversarial.max(1).dataSync()[0];
     let cl_adv = p_adversarial.argMax(1).dataSync()[0];
+
+    var orImageB64 = await this.getDataUrl(source.originalImage);
+    var advImgB64 = await this.getDataUrl(attackResult.advImg);
+
     this.testContext.reports.get(attackName)[a].originalPrediction = source.originalClassName;
     this.testContext.reports.get(attackName)[a].originalConfidence = source.originalConfidence;
-    var orImageB64 = await this.getDataUrl(source.originalImage);
     this.testContext.reports.get(attackName)[a].orImage = orImageB64;
     this.testContext.reports.get(attackName)[a].advConfidence = conf_adv;
-    this.testContext.reports.get(attackName)[a].advPrediction =
-      this.testContext.classNames[cl_adv];
-    this.testContext.reports.get(attackName)[a].euclidianDistance = this.euclidianDistance(attackResult.advImg, source.originalImage);
-    this.testContext.reports.get(attackName)[a].chebyshevDistance = this.chebyshevDistanse(attackResult.advImg, source.originalImage);
-    var advImgB64 = await this.getDataUrl(attackResult.advImg);
+    this.testContext.reports.get(attackName)[a].advPrediction = this.testContext.classNames[cl_adv];
+    this.testContext.reports.get(attackName)[a].euclidianDistance = Metrics.euclidianDistance(attackResult.advImg, source.originalImage);
+    this.testContext.reports.get(attackName)[a].chebyshevDistance = Metrics.chebyshevDistanse(attackResult.advImg, source.originalImage);
+    this.testContext.reports.get(attackName)[a].psnr = Metrics.psnr(source.originalImage, attackResult.advImg);
     this.testContext.reports.get(attackName)[a].advImage = advImgB64;
 
     if (attackResult.delta) {
@@ -186,7 +175,7 @@ export class AppComponent implements OnInit {
   async runTest() {
     this.testContext.attackInProgress = true;
     this.testContext.progress = 0;
-    this.testContext.reports = new Map<string, Attack[]>();
+    this.testContext.reports = new Map<string, TestCase[]>();
 
     if (this.testContext.fgsm) {
 
@@ -216,8 +205,8 @@ export class AppComponent implements OnInit {
 
     if (this.testContext.jsma) {
 
-      this.BuildReportForTargeted(Attacks.jsma.name);
-      await this.runTargeted(Attacks.jsma, this.testContext.config.fgsm);
+      this.BuildReportForTargeted(Attacks.jsmaOnePixel.name);
+      await this.runTargeted(Attacks.jsmaOnePixel, this.testContext.config.jsma);
     }
 
     if (this.testContext.cw) {
@@ -235,18 +224,19 @@ export class AppComponent implements OnInit {
 
   }
   private BuildReportForTargeted(attackName) {
-    var attacks = new Array<Attack>();
+    var attacks = new Array<TestCase>();
     for (var i = 0; i < this.dataset.length; i++) {
       for (var j = 0; j < this.dataset.length; j++) {
-        if (j != i) attacks.push(new Attack());
+        if (j != i) attacks.push(new TestCase());
       }
     }
     this.testContext.reports.set(attackName, attacks);
   }
+
   private BuildReport(attackName) {
-    var attacks = new Array<Attack>();
+    var attacks = new Array<TestCase>();
     for (var i = 0; i < this.dataset.length; i++) {
-      attacks.push(new Attack());
+      attacks.push(new TestCase());
     }
     this.testContext.reports.set(attackName, attacks);
   }

@@ -113,7 +113,7 @@ export class Attacks {
      *
      * @returns {tf.Tensor} The adversarial image.
      */
-    public static bim(model, img, lbl, config) {
+    public static bim(model, img, lbl, config: BimConfig) {
         let ε = config.epsilon;
         let α = config.alpha;
 
@@ -158,7 +158,7 @@ export class Attacks {
      *
      * @returns {tf.Tensor} The adversarial image.
      */
-    public static bimTargeted(model, img, lbl, targetLbl, config) {
+    public static bimTargeted(model, img, lbl, targetLbl, config: BimConfig) {
         let ε = config.epsilon;
         let α = config.alpha;;
         let iters = config.iterations;
@@ -212,7 +212,9 @@ export class Attacks {
      *
      * @returns {tf.Tensor} The adversarial image.
      */
-    public static jsmaOnePixel(model, img, lbl, targetLbl, { ε = 28 } = {}) {
+    public static jsmaOnePixel(model, img, lbl, targetLbl, config: JsmaConfig) {
+
+        let ε = config.epsilon;
         // Compute useful constants
         let NUM_PIXELS = img.flatten().shape[0];  // Number of pixels in the image (for RGB, each channel counts as one "pixel")
 
@@ -251,8 +253,10 @@ export class Attacks {
             aimg.dispose();  // Delete old data, otherwise the old tensor becomes an orphaned memory leak
             aimg = tf.tensor(imgArr, img.shape);
         }
+        let result = new AttackResult();
+        result.advImg = aimg;
 
-        return aimg;
+        return result;
     }
 
     /**
@@ -278,7 +282,8 @@ export class Attacks {
      *
      * @returns {tf.Tensor} The adversarial image.
      */
-    public static jsma(model, img, lbl, targetLbl, { ε = 28 } = {}) {
+    public static jsma(model, img, lbl, targetLbl, config: JsmaConfig) {
+        let ε = config.epsilon;
         // Compute useful constants
         let NUM_PIXELS = img.flatten().shape[0];      // Number of pixels in the image (for RGB, each channel counts as one "pixel")
         let LT = targetLbl.argMax(1).arraySync()[0];  // Target label as an index rather than a one-hot vector
@@ -460,6 +465,10 @@ export class Attacks {
     }
 
 }
+export class JsmaConfig {
+    epsilon: number;
+}
+
 export class FgsmConfig {
     epsilon: number;
     targeted: boolean;
