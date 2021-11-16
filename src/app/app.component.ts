@@ -22,6 +22,7 @@ export class AppComponent implements OnInit {
   testContext: TestContext;
   model: tf.LayersModel;
   dataset: any;
+  savedModels: Set<string>;
 
   constructor() {
     this.InitializeTestContext();
@@ -51,7 +52,19 @@ export class AppComponent implements OnInit {
   }
 
   async ngOnInit() {
+    this.savedModels = new Set<string>();
+    for (var key in localStorage) {
+      if (key.startsWith("tensorflowjs_models")) {
+        var modelName = key.split('/')[1];
+        this.savedModels.add(modelName);
+      }
+    }
   }
+
+  onFileChange(event) {
+    event.target.nextSibling.innerText = event.target.files[0].name;
+  }
+
   async loadModel() {
 
     this.model = await tf.loadLayersModel(tf.io.browserFiles([this.i_model.nativeElement.files[0], this.i_weights.nativeElement.files[0]]));
@@ -64,10 +77,6 @@ export class AppComponent implements OnInit {
     await this.loadDataset();
 
   }
-  onFileChange(event) {
-    event.target.nextSibling.innerText = event.target.files[0].name;
-  }
-
   async loadDataset() {
     // Load data in form [{xs: x0_tensor, ys: y0_tensor}, {xs: x1_tensor, ys: y1_tensor}, ...]
     let x, y;
@@ -78,6 +87,33 @@ export class AppComponent implements OnInit {
     loadingData.then(async x => {
       this.testContext.readyForTest = true;
     })
+  }
+  async save() {
+    var dataset = [];
+    for (let i = 0; i < this.dataset.length; i++) {
+      dataset[i] = {
+        xs: { data: this.dataset[i].xs.arraySync(), shape: this.dataset[i].xs.shape },
+        ys: { data: this.dataset[i].ys.arraySync(), shape: this.dataset[i].ys.shape }
+      }
+    }
+    await this.model.save(`localstorage://${this.model.name}`);
+    localStorage.setItem(`tensorflowjs_models/${this.model.name}/class_names`, JSON.stringify(this.testContext.classNames));
+    localStorage.setItem(`tensorflowjs_models/${this.model.name}/dataset`, JSON.stringify(dataset));
+
+  }
+  async loadModelFromLocalStorage(modelName: string) {
+    this.model = await tf.loadLayersModel(`localstorage://${modelName}`);
+    var dataset = JSON.parse(localStorage.getItem(`tensorflowjs_models/${this.model.name}/dataset`));
+    this.testContext.classNames = JSON.parse(localStorage.getItem(`tensorflowjs_models/${this.model.name}/class_names`));
+    this.dataset = [];
+    for (let i = 0; i < dataset.length; i++) {
+      this.dataset[i] = {
+        xs: tf.tensor(dataset[i].xs.data, dataset[i].xs.shape),
+        ys: tf.tensor(dataset[i].ys.data, dataset[i].ys.shape),
+      }
+    }
+
+    this.testContext.readyForTest = true;
   }
 
   readFile(file: File) {

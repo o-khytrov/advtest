@@ -32,7 +32,6 @@ export class Attacks {
         let grad = tf.grad(loss);
         let delta = tf.sign(grad(img)).mul(config.epsilon)
         let result = new AttackResult();
-        result.delta = delta.clipByValue(0, 255);
         result.advImg = img.add(delta).clipByValue(0, 1);
 
         return result;
