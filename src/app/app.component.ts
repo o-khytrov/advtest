@@ -5,6 +5,9 @@ import { TestCase, Config, Source, TestContext } from 'src/testContext';
 import { AttackResult, Attacks, BimConfig, CwConfig, FgsmConfig, JsmaConfig } from 'src/attacks';
 import { Metrics } from 'src/metrics';
 import { accuracy } from '@tensorflow/tfjs-vis/dist/util/math';
+import { Utils } from 'src/utils';
+import { Solver } from 'src/de/solvert';
+import { Bounds } from 'src/de/mutation';
 
 @Component({
   selector: 'app-root',
@@ -53,7 +56,26 @@ export class AppComponent implements OnInit {
     this.testContext.config.cw.iterations = 100;
   }
 
+  Rosenbrock(variables: number[], args: any[]) {
+    let result = 0;
+    for (let i = 0; i < variables.length - 1; i++) {
+      result += Math.pow(1 - variables[i], 2)
+        + 100 * Math.pow(variables[i + 1]
+          - Math.pow(variables[i], 2), 2);
+    }
+    return result;
+  }
+
   async ngOnInit() {
+    var solver = new Solver();
+    var bounds = new Array<Bounds>();
+    bounds.push({ min: -1, max: 4 });
+    bounds.push({ min: 0, max: 8 });
+    bounds.push({ min: -10, max: 15 });
+    // Solve
+    var result = solver.start(this.Rosenbrock, bounds, 5);
+
+
     this.savedModels = new Set<string>();
     for (var key in localStorage) {
       if (key.startsWith("tensorflowjs_models")) {

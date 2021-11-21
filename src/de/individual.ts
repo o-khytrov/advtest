@@ -3,6 +3,7 @@ import { LinSpaceAttrs } from "@tensorflow/tfjs-core";
 export class Individual {
 
     values: number[];
+    Energy: number;
     constructor(variablesCount: number) {
         this.values = Number[variablesCount];
 
