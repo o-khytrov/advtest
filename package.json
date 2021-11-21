@@ -21,6 +21,7 @@
         "@angular/router": "~12.2.0",
         "@ng-bootstrap/ng-bootstrap": "^10.0.0",
         "@tensorflow/tfjs": "^3.11.0",
+        "@tensorflow/tfjs-vis": "^1.5.1",
         "bootstrap": "^4.5.0",
         "long": "4.0.0",
         "ngx-toastr": "^14.2.0",

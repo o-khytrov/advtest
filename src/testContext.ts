@@ -3,7 +3,7 @@ import { BimConfig, CwConfig, FgsmConfig, JsmaConfig } from "./attacks";
 
 export class TestContext {
     readyForTest: boolean;
-    summary: Array<string>;
+    summary: Map<string, AttackSummary>;
     testData: Array<Array<Array<number>>>;
     lables: Array<Array<number>>;
     classNames: Array<string>;
@@ -28,8 +28,6 @@ export class Config {
     jsma: JsmaConfig;
 }
 
-
-
 export class TestCase {
 
     targetClass: string;
@@ -50,4 +48,7 @@ export class Source {
     originalImage: tf.Tensor;
     originalConfidence: number;
     originalClassName: string;
+}
+
+export class AttackSummary {
 }

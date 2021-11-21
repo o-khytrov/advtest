@@ -3,6 +3,7 @@
 @import '~ngx-toastr/toastr';
 .image {
     width: 150px;
+    image-rendering: pixelated;
 }
 
 .attack-case {
@@ -16,4 +17,8 @@
 
 .slider {
     width: 100%;
+}
+
+.saved-model {
+    cursor: pointer;
 }

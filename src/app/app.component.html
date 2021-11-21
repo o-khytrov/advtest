@@ -1,11 +1,14 @@
-<nav class="navbar navbar-light bg-light">
+<nav class="navbar navbar-dark bg-dark">
     <a class="navbar-brand" href="#">Testing neural network robustness</a>
 </nav>
+<button *ngIf="model" class="btn btn-light btn-sm btn-round float-right m-5" (click)="toggleVisor()">Info</button>
 <div class="container">
     <div class="card mt-2" *ngIf="!model && savedModels && savedModels.size > 0">
         <div class="card-header">Load model from local storage</div>
         <div class="card-body">
-            <div *ngFor="let m of savedModels" (click)="loadModelFromLocalStorage(m)">{{m}}</div>
+            <ul class="list-group">
+                <li *ngFor="let m of savedModels" (click)="loadModelFromLocalStorage(m)" class="list-group-item saved-model">{{m}}</li>
+            </ul>
         </div>
     </div>
     <div class="card mt-2" *ngIf="!model">
@@ -144,7 +147,7 @@
             <div class="form-group row border p-2">
                 <div class="col-sm-3">
                     <div class="form-check">
-                        <input class="form-check-input" disabled="disabled" type="checkbox" id="cb_cw" [checked]="testContext.diffEvol" (change)="testContext.diffEvol=!testContext.diffEvol">
+                        <input class="form-check-input" type="checkbox" id="cb_cw" [checked]="testContext.diffEvol" (change)="testContext.diffEvol=!testContext.diffEvol">
                         <label class="form-check-label " for="cb_bim">Differential Evolution</label>
                     </div>
                 </div>

@@ -20,13 +20,19 @@
       "es2018",
       "dom"
     ],
-    "types": ["long"]
+    "types": [
+      "long"
+    ]
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
     "strictInjectionParameters": true,
     "strictInputAccessModifiers": true,
     "strictTemplates": true,
-    "types": ["long"]
+    "types": [
+      "long"
+    ],
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
   }
 }

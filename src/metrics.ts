@@ -14,7 +14,6 @@ export class Metrics {
         let c = tf.sub(a, b);
         let d = tf.abs(c).max().dataSync()[0];
         c.dispose();
-        console.log(d);
         return d;
     }
     public static euclidianDistance(a: tf.Tensor, b: tf.Tensor) {

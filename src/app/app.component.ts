@@ -1,8 +1,10 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import * as tf from '@tensorflow/tfjs'
+import * as tfvis from '@tensorflow/tfjs-vis'
 import { TestCase, Config, Source, TestContext } from 'src/testContext';
 import { AttackResult, Attacks, BimConfig, CwConfig, FgsmConfig, JsmaConfig } from 'src/attacks';
 import { Metrics } from 'src/metrics';
+import { accuracy } from '@tensorflow/tfjs-vis/dist/util/math';
 
 @Component({
   selector: 'app-root',
@@ -65,14 +67,16 @@ export class AppComponent implements OnInit {
     event.target.nextSibling.innerText = event.target.files[0].name;
   }
 
+  async showModel() {
+    const surface = { name: 'Model Summary', tab: 'Model Inspection' };
+    tfvis.show.modelSummary(surface, this.model);
+    tfvis.show.layer(surface, this.model.getLayer(undefined, 0));
+  }
+
   async loadModel() {
 
     this.model = await tf.loadLayersModel(tf.io.browserFiles([this.i_model.nativeElement.files[0], this.i_weights.nativeElement.files[0]]));
-
-    this.model.summary(null, null, (x) => {
-      this.testContext.summary = x;
-      console.log(this.testContext.summary);
-    });
+    this.showModel();
 
     await this.loadDataset();
 
@@ -113,6 +117,7 @@ export class AppComponent implements OnInit {
       }
     }
 
+    this.showModel();
     this.testContext.readyForTest = true;
   }
 
@@ -128,8 +133,15 @@ export class AppComponent implements OnInit {
   }
 
   async getDataUrl(img) {
-    var shape = img.shape;
-    await tf.browser.toPixels(img.reshape(shape.slice(1)), this.canvas);
+    var shape = img.shape.slice(1);
+
+    if (shape.length == 1)//grayscale array
+    {
+      let side = Math.sqrt(shape[0]);
+      shape = [side, side, 1]
+    }
+
+    await tf.browser.toPixels(img.reshape(shape), this.canvas);
     return this.canvas.toDataURL();
   }
 
@@ -168,7 +180,9 @@ export class AppComponent implements OnInit {
       source.originalImage = img;
 
       for (let j = 0; j < this.dataset.length; j++) {
-        if (j == i) continue;//skip same class
+        if (j == i) {
+          continue;//skip same class
+        }
         let targetLbl = this.dataset[j].ys;
         let targetLblIndex = targetLbl.argMax(1).dataSync()[0];
 
@@ -183,7 +197,32 @@ export class AppComponent implements OnInit {
       }
 
     }
+    //this.BuildConfusionMatrix(attack.name);
   }
+  private BuildConfusionMatrix(attackName: string) {
+    let confusionMatrix = [];
+    let a = 0;
+    for (let i = 0; i < this.dataset.length; i++) {
+      let row = [];
+      for (let j = 0; j < this.dataset.length; j++) {
+        if (i == j) {
+          row.push(1);
+        }
+        else {
+          let testCase = this.testContext.reports.get(attackName)[a];
+          row.push(testCase.advConfidence);
+          a++;
+        }
+      }
+      confusionMatrix.push(row);
+    }
+    const data = { values: confusionMatrix, labels: this.testContext.classNames };
+
+    // Render to visor
+    const surface = { name: `Confusion Matrix ${attackName}`, tab: 'Charts' };
+    tfvis.render.confusionMatrix(surface, data);
+  }
+
   async fillReport(source: Source, attackName: string, a: number, attackResult: AttackResult) {
     let p_adversarial = (this.model.predict(attackResult.advImg) as tf.Tensor);
     let conf_adv = p_adversarial.max(1).dataSync()[0];
@@ -191,16 +230,17 @@ export class AppComponent implements OnInit {
 
     var orImageB64 = await this.getDataUrl(source.originalImage);
     var advImgB64 = await this.getDataUrl(attackResult.advImg);
+    let testCase = this.testContext.reports.get(attackName)[a];
 
-    this.testContext.reports.get(attackName)[a].originalPrediction = source.originalClassName;
-    this.testContext.reports.get(attackName)[a].originalConfidence = source.originalConfidence;
-    this.testContext.reports.get(attackName)[a].orImage = orImageB64;
-    this.testContext.reports.get(attackName)[a].advConfidence = conf_adv;
-    this.testContext.reports.get(attackName)[a].advPrediction = this.testContext.classNames[cl_adv];
-    this.testContext.reports.get(attackName)[a].euclidianDistance = Metrics.euclidianDistance(attackResult.advImg, source.originalImage);
-    this.testContext.reports.get(attackName)[a].chebyshevDistance = Metrics.chebyshevDistanse(attackResult.advImg, source.originalImage);
-    this.testContext.reports.get(attackName)[a].psnr = Metrics.psnr(source.originalImage, attackResult.advImg);
-    this.testContext.reports.get(attackName)[a].advImage = advImgB64;
+    testCase.originalPrediction = source.originalClassName;
+    testCase.originalConfidence = source.originalConfidence;
+    testCase.orImage = orImageB64;
+    testCase.advConfidence = conf_adv;
+    testCase.advPrediction = this.testContext.classNames[cl_adv];
+    testCase.euclidianDistance = Metrics.euclidianDistance(attackResult.advImg, source.originalImage);
+    testCase.chebyshevDistance = Metrics.chebyshevDistanse(attackResult.advImg, source.originalImage);
+    testCase.psnr = Metrics.psnr(source.originalImage, attackResult.advImg);
+    testCase.advImage = advImgB64;
 
     if (attackResult.delta) {
       var deltaB64 = await this.getDataUrl(attackResult.delta);
@@ -279,5 +319,11 @@ export class AppComponent implements OnInit {
 
   reportProgres(progres, total) {
     this.testContext.progress = progres / total * 100;
+  }
+  toggleVisor() {
+    tfvis.visor().toggle();
+  }
+  summary() {
+
   }
 }
