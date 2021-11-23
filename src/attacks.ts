@@ -1,6 +1,8 @@
 
 import * as tf from '@tensorflow/tfjs';
 import { convertToObject } from 'typescript';
+import { Bounds } from './de/mutation';
+import { Solver } from './de/solver';
 export class AttackResult {
     delta: tf.Tensor;
     advImg: tf.Tensor;
@@ -429,83 +431,51 @@ export class Attacks {
         let numberOfGeneratios = 20;
         let mutationRate = 0.01;
         let shape = img.shape;
-        let bestScore = 0;
         let d = img.dataSync();
-        let population = Attacks.initialPopulation(populationSize, d, shape, model, currentClass);
 
-        for (let g = 0; g < numberOfGeneratios; g++) {
+        var solver = new Solver();
+        var bounds = new Array<Bounds>();
+        bounds.push({ min: 0, max: 32 });
+        bounds.push({ min: 0, max: 32 });
+        bounds.push({ min: 0, max: 255 });
+        bounds.push({ min: 0, max: 255 });
+        bounds.push({ min: 0, max: 255 });
+        // Solve
+        var optimizationResult = solver.start(function (values: number[], args) {
+            let p = new PerturbGen();
+            p.x = values[0];
+            p.y = values[1];
+            p.r = values[2];
+            p.g = values[3];
+            p.b = values[4];
+            p.position = (p.y * shape[2] + p.x) * shape[3];
 
-            let nextGen = population = Attacks.evolve(population, model, currentClass, d, shape);
-            population = nextGen;
-            console.log(`gen: ${g}; best fitness: ${population[0].fitness}`)
-        }
+            let perturb = Attacks.perturb(p, Array.from(d));
+            let tensor = tf.tensor(perturb, shape);
+            let prediction = model.predict(tensor) as tf.Tensor;
+            let conf = prediction.dataSync()[currentClass];
+            return conf;
 
-        let perturb = Attacks.perturb(population[0], Array.from(d));
+        }, bounds, 5);
+
+        let values = optimizationResult.BestSolution;
+        console.log(optimizationResult);
+        let p = new PerturbGen();
+        p.x = values[0];
+        p.y = values[1];
+        p.r = values[2];
+        p.g = values[3];
+        p.b = values[4];
+        p.position = (p.y * shape[2] + p.x) * shape[3];
+
+        let perturb = Attacks.perturb(p, Array.from(d));
+
         let result = new AttackResult();
 
         result.advImg = tf.tensor(perturb, shape);
 
         return result;
 
-    }
-
-    private static evolve(generation: PerturbGen[], model: tf.LayersModel, targetClass: number, data: Float32Array | Int32Array | Uint8Array, shape) {
-        let mr = 4;
-        let width = shape[1];
-        let height = shape[2];
-        let nextGen = Array<PerturbGen>();
-        let top = generation.slice(0, generation.length / 10);
-
-        for (let i = 0; i < top.length; i++) {
-            for (let d = 0; d < top.length; d++) {
-                let parenta = top[i];
-                let parentb = top[d];
-                let pixelData = new PerturbGen();
-                pixelData.x = Math.min(parenta.x + Attacks.getRandomInt(-mr, mr), width - 1);
-                pixelData.y = Math.min(parenta.y + Attacks.getRandomInt(-mr, mr), height - 1);
-                pixelData.r = Math.min(Math.floor(parentb.r + Attacks.getRandomInt(-mr, mr)), 255);
-                pixelData.g = Math.min(Math.floor(parentb.g + Attacks.getRandomInt(-mr, -mr)), 255);
-                pixelData.b = Math.min(Math.floor(parentb.b + Attacks.getRandomInt(-mr, mr)), 255);
-                pixelData.position = (pixelData.y * width + pixelData.x) * shape[3];;
-
-                let pixelArray = Array.from(data);
-                let perturb = Attacks.perturb(pixelData, pixelArray);
-                let tensor = tf.tensor(perturb, shape);
-                let prediction = model.predict(tensor) as tf.Tensor;
-                let conf = prediction.dataSync()[targetClass];
-                tensor.dispose();
-                prediction.dispose();
-                pixelData.fitness = conf;
-                //console.log(`$x:${pixelData.x}; x:${pixelData.y}; r:${pixelData.r};fitness ${pixelData.fitness}`);
-                nextGen.push(pixelData)
-            }
-        }
-        nextGen = nextGen.sort((a, b) => { return a.fitness - b.fitness });
-        return nextGen;
-    }
-
-    private static initialPopulation(populationSize: number, d: Float32Array | Int32Array | Uint8Array, shape, model: tf.LayersModel, targetClass: number) {
-
-        let population = new Array<PerturbGen>();
-        for (let i = 0; i < populationSize; i++) {
-            let pixelArray = Array.from(d);
-            let pixelData = new PerturbGen();
-            pixelData.x = Attacks.getRandomInt(0, shape[1]);
-            pixelData.y = Attacks.getRandomInt(0, shape[2]);
-            pixelData.r = Attacks.getRandomInt(0, 255);
-            pixelData.g = Attacks.getRandomInt(0, 255);
-            pixelData.b = Attacks.getRandomInt(0, 255);
-            pixelData.position = (pixelData.y * shape[2] + pixelData.x) * shape[3];;
-
-            let perturb = Attacks.perturb(pixelData, pixelArray);
-            let tensor = tf.tensor(perturb, shape);
-            let prediction = model.predict(tensor) as tf.Tensor;
-            let conf = prediction.dataSync()[targetClass];
-            pixelData.fitness = conf;
-            population.push(pixelData);
-        }
-
-        return population.sort((a, b) => { return a.fitness - b.fitness });
     }
 
     static getRandomInt(min, max) {

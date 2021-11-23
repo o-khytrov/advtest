@@ -1,5 +1,6 @@
 import { NumericDataType, rand } from "@tensorflow/tfjs-core";
 import { InitType, SearchStrategies, UpdateTypes } from "./enums";
+import { Individual } from "./individual";
 
 export class Mutation {
 
@@ -20,7 +21,7 @@ export class Mutation {
 
     ]);
 
-    static exponential: Map<SearchStrategies, Function> = new Map([
+    static exponential: Map<SearchStrategies, any> = new Map([
         [SearchStrategies.Best1Exp, Mutation.best1],
         [SearchStrategies.Rand1Exp, Mutation.rand1],
         [SearchStrategies.RandToBest1Exp, Mutation.randToBest1],
@@ -30,22 +31,77 @@ export class Mutation {
     ]);
 
 
-    static best1() {
+    static best1(samples: number[], population: Individual[], mutationValue: number, candidate: number) {
+        let prime = new Individual(population[0].values.length);
+        for (var i = 0; i < prime.values.length; i++) {
+            prime.values[i] = population[0].values[i] + mutationValue;
+                //* (population[samples[0]].values[i]
+                //   - population[samples[1]].values[i]);
+        }
+        return prime;
 
     }
-    static best2() {
+    static best2(samples: number[], population: Individual[], mutationValue: number, candidate: number) {
+
+        var prime = new Individual(population[0].values.length);
+        for (var i = 0; i < prime.values.length; i++) {
+            prime.values[i] = population[0].values[i] + mutationValue
+                * (population[samples[0]].values[i]
+                    + population[samples[1]].values[i]
+                    - population[samples[2]].values[i]
+                    - population[samples[3]].values[i]);
+        }
+        return prime;
+    }
+
+    static rand2(samples: number[], population: Individual[], mutationValue: number, candidate: number) {
+        var prime = new Individual(population[0].values.length);
+        for (var i = 0; i < prime.values.length; i++) {
+            prime.values[i] = population[samples[0]].values[i]
+                + mutationValue
+                * (population[samples[1]].values[i]
+                    + population[samples[2]].values[i]
+                    - population[samples[3]].values[i]
+                    - population[samples[4]].values[i]);
+        }
+        return prime;
 
     }
-    static rand2() {
+    static rand1(samples: number[], population: Individual[], mutationValue: number, candidate: number) {
+        var prime = new Individual(population[0].values.length);
+        for (var i = 0; i < prime.values.length; i++) {
+            prime.values[i] = population[samples[0]].values[i]
+                + mutationValue
+                * (population[samples[1]].values[i]
+                    - population[samples[2]].values[i]);
+        }
+        return prime;
 
     }
-    static rand1() {
+    static randToBest1(samples: number[], population: Individual[], mutationValue: number, candidate: number) {
 
+        var prime = new Individual(population[0].values.length);
+        for (var i = 0; i < prime.values.length; i++) {
+            prime.values[i] = population[samples[0]].values[i];
+            prime.values[i] += mutationValue * (population[0].values[i]
+                - prime.values[i]);
+            prime.values[i] += mutationValue
+                * (population[samples[1]].values[i]
+                    - population[samples[2]].values[i]);
+        }
+        return prime;
     }
-    static randToBest1() {
-
-    }
-    static currentToBest1() {
+    static currentToBest1(samples: number[], population: Individual[], mutationValue: number, candidate: number) {
+        var prime = new Individual(population[0].values.length);
+        for (var i = 0; i < prime.values.length; i++) {
+            prime.values[i] = population[candidate].values[i]
+                + mutationValue
+                * (population[0].values[i]
+                    - population[candidate].values[i]
+                    + population[samples[0]].values[i]
+                    - population[samples[1]].values[i]);
+        }
+        return prime;
 
     }
 
