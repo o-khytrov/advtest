@@ -35,7 +35,6 @@ export class Attacks {
         let delta = tf.sign(grad(img)).mul(config.epsilon)
         let result = new AttackResult();
         result.advImg = img.add(delta).clipByValue(0, 1);
-
         return result;
     }
 
@@ -432,13 +431,38 @@ export class Attacks {
         let mutationRate = 0.01;
         let shape = img.shape;
         let d = img.dataSync();
+        let betstConf = 0;
+        let t;
 
+        for (let i = 0; i < 28; i++) {
+            for (let j = 0; j < 28; j++) {
+                console.log()
+                for (let p = 1; p < 256; p++) {
+
+                    let arr = Array.from(d);
+
+                    let tensor = tf.tensor(arr, shape);
+                    let prediction = model.predict(tensor) as tf.Tensor;
+                    let conf = prediction.dataSync()[targetClass];
+                    if (conf > betstConf) {
+                        betstConf = conf;
+                        t = arr;
+
+                    }
+                }
+            }
+        }
+        let result = new AttackResult();
+
+        result.advImg = tf.tensor(t, shape);
+
+        return result;
+
+        /*
         var solver = new Solver();
         var bounds = new Array<Bounds>();
-        bounds.push({ min: 0, max: 32 });
-        bounds.push({ min: 0, max: 32 });
-        bounds.push({ min: 0, max: 255 });
-        bounds.push({ min: 0, max: 255 });
+        bounds.push({ min: 0, max: 28 });
+        bounds.push({ min: 0, max: 28});
         bounds.push({ min: 0, max: 255 });
         // Solve
         var optimizationResult = solver.start(function (values: number[], args) {
@@ -446,14 +470,14 @@ export class Attacks {
             p.x = values[0];
             p.y = values[1];
             p.r = values[2];
-            p.g = values[3];
-            p.b = values[4];
-            p.position = (p.y * shape[2] + p.x) * shape[3];
-
-            let perturb = Attacks.perturb(p, Array.from(d));
-            let tensor = tf.tensor(perturb, shape);
+            p.position = (p.y * 28 + p.x); 
+            let a = Array.from(d);
+            a[p.position] = p.r;
+            let tensor = tf.tensor(a, shape);
             let prediction = model.predict(tensor) as tf.Tensor;
             let conf = prediction.dataSync()[currentClass];
+            prediction.print();
+
             return conf;
 
         }, bounds, 5);
@@ -475,6 +499,7 @@ export class Attacks {
         result.advImg = tf.tensor(perturb, shape);
 
         return result;
+        */
 
     }
 

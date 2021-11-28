@@ -170,6 +170,12 @@
     </p>
 
     <div id="report" *ngIf="testContext.reports">
+
+        <div class="card attack" *ngFor="let s of testContext.summary| keyvalue">
+            <div *ngFor="let round of s.value; let i = index" class="row attack-case border">
+                <div>{{round.avgChebDistance}}</div>
+            </div>
+        </div>
         <div class="card attack" *ngFor="let r of testContext.reports | keyvalue">
             <div class="card-header">
                 {{r.key}}

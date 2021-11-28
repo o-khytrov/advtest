@@ -1,13 +1,16 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import * as tf from '@tensorflow/tfjs'
 import * as tfvis from '@tensorflow/tfjs-vis'
-import { TestCase, Config, Source, TestContext } from 'src/testContext';
+import { AttackSummary, Config, TestContext } from 'src/testContext';
+import { Source } from "src/Source";
+import { TestCase } from "src/TestCase";
 import { AttackResult, Attacks, BimConfig, CwConfig, FgsmConfig, JsmaConfig } from 'src/attacks';
 import { Metrics } from 'src/metrics';
 import { accuracy } from '@tensorflow/tfjs-vis/dist/util/math';
 import { Utils } from 'src/utils';
 import { Solver } from 'src/de/solver';
 import { Bounds } from 'src/de/mutation';
+import { KeyValue } from '@angular/common';
 
 @Component({
   selector: 'app-root',
@@ -54,8 +57,9 @@ export class AppComponent implements OnInit {
     this.testContext.config.cw.confidenceRate = 1;
     this.testContext.config.cw.learningRate = 0.1;
     this.testContext.config.cw.iterations = 100;
+    this.testContext.summary = new Map<string, AttackSummary[]>();
 
-    this.testContext.diffEvol = true;
+    //this.testContext.diffEvol = true;
   }
 
   async ngOnInit() {
@@ -67,8 +71,8 @@ export class AppComponent implements OnInit {
       }
     }
 
-    await this.loadModelFromLocalStorage("sequential");
-    await this.runTest();
+    //await this.loadModelFromLocalStorage("mnist");
+    //await this.runTest();
   }
 
   onFileChange(event) {
@@ -202,10 +206,7 @@ export class AppComponent implements OnInit {
 
         a++;
         this.reportProgres(a + 1, this.dataset.length * this.dataset.length);
-        break;
       }
-      break;
-
     }
     //this.BuildConfusionMatrix(attack.name);
   }
@@ -242,6 +243,11 @@ export class AppComponent implements OnInit {
     var advImgB64 = await this.getDataUrl(attackResult.advImg);
     let testCase = this.testContext.reports.get(attackName)[a];
 
+    let dist = tf.sub(attackResult.advImg, source.originalImage);
+    let delta = tf.abs(dist);
+    //delta = tf.abs(tf.sub(tf.ones(source.originalImage.shape), delta));
+
+    attackResult.delta = delta;
     testCase.originalPrediction = source.originalClassName;
     testCase.originalConfidence = source.originalConfidence;
     testCase.orImage = orImageB64;
@@ -256,6 +262,7 @@ export class AppComponent implements OnInit {
       var deltaB64 = await this.getDataUrl(attackResult.delta);
       this.testContext.reports.get(attackName)[a].delta = deltaB64;
     }
+
   }
 
   async runTest() {
@@ -305,7 +312,7 @@ export class AppComponent implements OnInit {
       this.BuildReportForTargeted(Attacks.DifferentialEvolution.name);
       await this.runTargeted(Attacks.DifferentialEvolution, this.testContext.config.fgsm);
     }
-
+    this.summary();
     this.testContext.attackInProgress = false;
 
   }
@@ -334,6 +341,20 @@ export class AppComponent implements OnInit {
     tfvis.visor().toggle();
   }
   summary() {
+    for (let attackKey of this.testContext.reports.keys()) {
+      let sumDistance = 0;
+      let attackReport = this.testContext.reports.get(attackKey);
+      for (let a = 0; a < attackReport.length; a++) {
+        let attack = attackReport[a];
+        sumDistance += attack.chebyshevDistance;
+      }
+      let avgDistance = sumDistance / attackReport.length;
+      var summary = new AttackSummary();
+      summary.avgChebDistance = avgDistance;
 
+      if (!this.testContext.summary.get(attackKey))
+        this.testContext.summary.set(attackKey, new Array<AttackSummary>());
+      this.testContext.summary.get(attackKey).push(summary);
+    }
   }
 }

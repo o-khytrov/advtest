@@ -1,9 +1,9 @@
-import * as tf from '@tensorflow/tfjs'
 import { BimConfig, CwConfig, FgsmConfig, JsmaConfig } from "./attacks";
+import { TestCase } from './TestCase';
 
 export class TestContext {
     readyForTest: boolean;
-    summary: Map<string, AttackSummary>;
+    summary: Map<string, AttackSummary[]>;
     testData: Array<Array<Array<number>>>;
     lables: Array<Array<number>>;
     classNames: Array<string>;
@@ -28,27 +28,15 @@ export class Config {
     jsma: JsmaConfig;
 }
 
-export class TestCase {
-
-    targetClass: string;
-    originalPrediction: string;
-    originalConfidence: number;
-    orImage: string;
-
-    advImage: string;
-    delta: string;
-    advPrediction: string;
-    advConfidence: number;
-    euclidianDistance: number;
-    chebyshevDistance: number;
-    psnr: number;
-}
-
-export class Source {
-    originalImage: tf.Tensor;
-    originalConfidence: number;
-    originalClassName: string;
-}
-
 export class AttackSummary {
+
+    successRate:number;
+    avgChebDistance:number;
+}
+
+export enum AttackStatus
+{
+    Failed,
+    Succeeded,
+    PartialySucceded
 }
