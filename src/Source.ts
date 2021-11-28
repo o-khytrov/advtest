@@ -5,4 +5,6 @@ export class Source {
     originalImage: tf.Tensor;
     originalConfidence: number;
     originalClassName: string;
+    originalClassIndex: number;
+    targetClassIndex:number;
 }

@@ -27,12 +27,14 @@ export class Attacks {
     public static fgsm(model, img, lbl, config) {
         // Loss function that measures how close the image is to the original class
         function loss(input) {
-            return tf.metrics.categoricalCrossentropy(lbl, model.predict(input));  // Make input farther from original class
+            let loss=tf.metrics.categoricalCrossentropy(lbl, model.predict(input));  // Make input farther from original class
+            return loss;
         }
 
         // Perturb the image for one step in the direction of INCREASING loss
         let grad = tf.grad(loss);
-        let delta = tf.sign(grad(img)).mul(config.epsilon)
+        let gradient = grad(img);
+        let delta = tf.sign(gradient).mul(config.epsilon)
         let result = new AttackResult();
         result.advImg = img.add(delta).clipByValue(0, 1);
         return result;

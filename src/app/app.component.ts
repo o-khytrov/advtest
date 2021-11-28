@@ -1,7 +1,7 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import * as tf from '@tensorflow/tfjs'
 import * as tfvis from '@tensorflow/tfjs-vis'
-import { AttackSummary, Config, TestContext } from 'src/testContext';
+import { AttackStatus, AttackSummary, Config, TestContext } from 'src/testContext';
 import { Source } from "src/Source";
 import { TestCase } from "src/TestCase";
 import { AttackResult, Attacks, BimConfig, CwConfig, FgsmConfig, JsmaConfig } from 'src/attacks';
@@ -9,8 +9,10 @@ import { Metrics } from 'src/metrics';
 import { accuracy } from '@tensorflow/tfjs-vis/dist/util/math';
 import { Utils } from 'src/utils';
 import { Solver } from 'src/de/solver';
-import { Bounds } from 'src/de/mutation';
 import { KeyValue } from '@angular/common';
+import { Label } from 'ng2-charts';
+import { ChartDataSets, ChartType } from 'chart.js';
+import { ɵELEMENT_PROBE_PROVIDERS } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-root',
@@ -31,6 +33,15 @@ export class AppComponent implements OnInit {
   model: tf.LayersModel;
   dataset: any;
   savedModels: Set<string>;
+  showChart: boolean;
+
+  public lineChartOptions = {
+    responsive: true,
+  };
+
+  public lineChartLegend = true;
+  public lineChartType: ChartType = 'line';
+  public lineChartPlugins = [];
 
   constructor() {
     this.InitializeTestContext();
@@ -57,7 +68,7 @@ export class AppComponent implements OnInit {
     this.testContext.config.cw.confidenceRate = 1;
     this.testContext.config.cw.learningRate = 0.1;
     this.testContext.config.cw.iterations = 100;
-    this.testContext.summary = new Map<string, AttackSummary[]>();
+    this.testContext.summary = new Map<string, AttackSummary>();
 
     //this.testContext.diffEvol = true;
   }
@@ -166,6 +177,8 @@ export class AppComponent implements OnInit {
       let cl_original = p_original.argMax(1).dataSync()[0];
 
       let source = new Source();
+
+      source.originalClassIndex = cl_original;
       source.originalClassName = this.testContext.classNames[cl_original];
       source.originalConfidence = conf_original;
       source.originalImage = img;
@@ -187,6 +200,7 @@ export class AppComponent implements OnInit {
       let conf_original = p_original.max(1).dataSync()[0];
       let cl_original = p_original.argMax(1).dataSync()[0];
       let source = new Source();
+      source.originalClassIndex = cl_original;
       source.originalClassName = this.testContext.classNames[cl_original];
       source.originalConfidence = conf_original;
       source.originalImage = img;
@@ -197,6 +211,8 @@ export class AppComponent implements OnInit {
         }
         let targetLbl = this.dataset[j].ys;
         let targetLblIndex = targetLbl.argMax(1).dataSync()[0];
+
+        source.targetClassIndex = targetLblIndex;
 
         let attackResult = tf.tidy(() => attack(this.model, img, lbl, targetLbl, config));
 
@@ -238,6 +254,7 @@ export class AppComponent implements OnInit {
     let p_adversarial = (this.model.predict(attackResult.advImg) as tf.Tensor);
     let conf_adv = p_adversarial.max(1).dataSync()[0];
     let cl_adv = p_adversarial.argMax(1).dataSync()[0];
+    let confidenceInOriginalClass = p_adversarial.dataSync()[source.originalClassIndex];
 
     var orImageB64 = await this.getDataUrl(source.originalImage);
     var advImgB64 = await this.getDataUrl(attackResult.advImg);
@@ -245,9 +262,11 @@ export class AppComponent implements OnInit {
 
     let dist = tf.sub(attackResult.advImg, source.originalImage);
     let delta = tf.abs(dist);
-    //delta = tf.abs(tf.sub(tf.ones(source.originalImage.shape), delta));
 
     attackResult.delta = delta;
+    testCase.confidenceInOriginalClass = confidenceInOriginalClass;
+
+
     testCase.originalPrediction = source.originalClassName;
     testCase.originalConfidence = source.originalConfidence;
     testCase.orImage = orImageB64;
@@ -262,6 +281,25 @@ export class AppComponent implements OnInit {
       var deltaB64 = await this.getDataUrl(attackResult.delta);
       this.testContext.reports.get(attackName)[a].delta = deltaB64;
     }
+    if (testCase.targetClass) {
+      if (cl_adv == source.targetClassIndex) {
+
+        testCase.status = AttackStatus.Succeeded;
+      } else
+        if (cl_adv != source.originalClassIndex) {
+          testCase.status = AttackStatus.PartialySucceded;
+        }
+        else
+          testCase.status = AttackStatus.Failed;
+
+    }
+    else {
+      if (cl_adv != source.originalClassIndex) {
+        testCase.status = AttackStatus.Succeeded;
+      }
+      else
+        testCase.status = AttackStatus.Failed;
+    }
 
   }
 
@@ -269,28 +307,39 @@ export class AppComponent implements OnInit {
     this.testContext.attackInProgress = true;
     this.testContext.progress = 0;
     this.testContext.reports = new Map<string, TestCase[]>();
+    let attackName = "";
+    let epsilon = 0;
 
     if (this.testContext.fgsm) {
 
+      epsilon = this.testContext.config.fgsm.epsilon;
       if (this.testContext.config.fgsm.targeted) {
-        this.BuildReportForTargeted(Attacks.fgsmTargeted.name);
+
+        attackName = Attacks.fgsmTargeted.name;
+        this.BuildReportForTargeted(attackName);
         await this.runTargeted(Attacks.fgsmTargeted, this.testContext.config.fgsm);
 
       }
       else {
-        this.BuildReport(Attacks.fgsm.name);
+        attackName = Attacks.fgsm.name;
+        this.BuildReport(attackName);
         await this.runUntargeted(Attacks.fgsm, this.testContext.config.fgsm);
 
       }
     }
 
     if (this.testContext.bim) {
+
+      epsilon = this.testContext.config.bim.epsilon;
       if (this.testContext.config.bim.targeted) {
-        this.BuildReportForTargeted(Attacks.bimTargeted.name)
+
+        attackName = Attacks.bimTargeted.name;
+        this.BuildReportForTargeted(attackName)
         await this.runTargeted(Attacks.bimTargeted, this.testContext.config.bim);
       }
       else {
-        this.BuildReport(Attacks.bim.name);
+        attackName = Attacks.bim.name;
+        this.BuildReport(attackName);
         await this.runUntargeted(Attacks.bim, this.testContext.config.bim);
 
       }
@@ -298,20 +347,34 @@ export class AppComponent implements OnInit {
 
     if (this.testContext.jsma) {
 
-      this.BuildReportForTargeted(Attacks.jsmaOnePixel.name);
+      epsilon = this.testContext.config.jsma.epsilon;
+      attackName = Attacks.jsmaOnePixel.name;
+      this.BuildReportForTargeted(attackName)
       await this.runTargeted(Attacks.jsmaOnePixel, this.testContext.config.jsma);
     }
 
     if (this.testContext.cw) {
 
-      this.BuildReportForTargeted(Attacks.cw.name);
+      epsilon = this.testContext.config.cw.successRate;
+      attackName = Attacks.cw.name;
+      this.BuildReportForTargeted(attackName);
       await this.runTargeted(Attacks.cw, this.testContext.config.cw);
     }
 
     if (this.testContext.diffEvol) {
-      this.BuildReportForTargeted(Attacks.DifferentialEvolution.name);
+      attackName = Attacks.DifferentialEvolution.name;
+      this.BuildReportForTargeted(attackName);
       await this.runTargeted(Attacks.DifferentialEvolution, this.testContext.config.fgsm);
     }
+    var summary = this.testContext.summary.get(attackName);
+    if (!summary) {
+      summary = new AttackSummary();
+      this.testContext.summary.set(attackName, new AttackSummary());
+      summary = this.testContext.summary.get(attackName);
+    }
+
+    summary.EpsilonChart[0].data.push(epsilon);
+
     this.summary();
     this.testContext.attackInProgress = false;
 
@@ -340,21 +403,42 @@ export class AppComponent implements OnInit {
   toggleVisor() {
     tfvis.visor().toggle();
   }
+
   summary() {
     for (let attackKey of this.testContext.reports.keys()) {
-      let sumDistance = 0;
+      let sumChebDistance = 0;
+      let sumEuclDistance = 0;
+      let sumPSNR = 0;
+      let sumOrConf = 0;
+      let succeededAttacks = 0;
+
       let attackReport = this.testContext.reports.get(attackKey);
+
       for (let a = 0; a < attackReport.length; a++) {
         let attack = attackReport[a];
-        sumDistance += attack.chebyshevDistance;
+        sumChebDistance += attack.chebyshevDistance;
+        sumEuclDistance += attack.euclidianDistance;
+        sumPSNR += attack.psnr;
+        sumOrConf += attack.confidenceInOriginalClass;
+        if (attack.status == AttackStatus.Succeeded) {
+          succeededAttacks++;
+        }
       }
-      let avgDistance = sumDistance / attackReport.length;
-      var summary = new AttackSummary();
-      summary.avgChebDistance = avgDistance;
+      let avgChebDistance = sumChebDistance / attackReport.length;
+      let avgEuclDistance = sumEuclDistance / attackReport.length;
+      let avgPsnr = sumPSNR / attackReport.length;
+      let avgOrConf = sumOrConf / attackReport.length;
+      let successRate = Math.floor(succeededAttacks / attackReport.length * 100);
 
-      if (!this.testContext.summary.get(attackKey))
-        this.testContext.summary.set(attackKey, new Array<AttackSummary>());
-      this.testContext.summary.get(attackKey).push(summary);
+      var summary = this.testContext.summary.get(attackKey);
+      summary.ChebDistChartData[0].data.push(avgChebDistance);
+      summary.EuclDistChartData[0].data.push(avgEuclDistance);
+      summary.PsnrDistChartData[0].data.push(avgPsnr);
+      summary.orConfChartData[0].data.push(avgOrConf);
+      summary.SuccessRate[0].data.push(successRate);
+      summary.lineChartLabels.push(summary.lineChartLabels.length.toString());
+
     }
+    this.showChart = true;
   }
 }

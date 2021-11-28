@@ -16,5 +16,6 @@ export class TestCase {
     chebyshevDistance: number;
     psnr: number;
 
+    confidenceInOriginalClass: number;
     status: AttackStatus;
 }

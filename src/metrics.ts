@@ -7,8 +7,10 @@ export class Metrics {
             const mse = tf.losses.meanSquaredError(a, b);
             return mse.dataSync()
         })
+        let mse = mseTensor[0];
+        if(mse==0) return 0;
 
-        return 10 * Math.log10(1 / mseTensor[0]);
+        return 10 * Math.log10(1 / mse);
     }
     public static chebyshevDistanse(a: tf.Tensor, b: tf.Tensor) {
         let c = tf.sub(a, b);

@@ -171,14 +171,29 @@
 
     <div id="report" *ngIf="testContext.reports">
 
-        <div class="card attack" *ngFor="let s of testContext.summary| keyvalue">
-            <div *ngFor="let round of s.value; let i = index" class="row attack-case border">
-                <div>{{round.avgChebDistance}}</div>
-            </div>
-        </div>
         <div class="card attack" *ngFor="let r of testContext.reports | keyvalue">
             <div class="card-header">
                 {{r.key}}
+            </div>
+            <div *ngIf="showChart && testContext.summary.get(r.key)" class="row">
+                <div class="col-6">
+                    <canvas baseChart width="500" height="200" [datasets]="testContext.summary.get(r.key).EpsilonChart" [labels]="testContext.summary.get(r.key).lineChartLabels" [options]="lineChartOptions" [legend]="lineChartLegend" [chartType]="lineChartType" [plugins]="lineChartPlugins"></canvas>
+                </div>
+                <div class="col-6">
+                    <canvas baseChart width="500" height="200" [datasets]="testContext.summary.get(r.key).orConfChartData" [labels]="testContext.summary.get(r.key).lineChartLabels" [options]="lineChartOptions" [legend]="lineChartLegend" [chartType]="lineChartType" [plugins]="lineChartPlugins"></canvas>
+                </div>
+                <div class="col-6">
+                    <canvas baseChart width="500" height="200" [datasets]="testContext.summary.get(r.key).SuccessRate" [labels]="testContext.summary.get(r.key).lineChartLabels" [options]="lineChartOptions" [legend]="lineChartLegend" [chartType]="lineChartType" [plugins]="lineChartPlugins"></canvas>
+                </div>
+                <div class="col-6">
+                    <canvas baseChart width="500" height="200" [datasets]="testContext.summary.get(r.key).ChebDistChartData" [labels]="testContext.summary.get(r.key).lineChartLabels" [options]="lineChartOptions" [legend]="lineChartLegend" [chartType]="lineChartType" [plugins]="lineChartPlugins"></canvas>
+                </div>
+                <div class="col-6">
+                    <canvas baseChart width="500" height="200" [datasets]="testContext.summary.get(r.key).EuclDistChartData" [labels]="testContext.summary.get(r.key).lineChartLabels" [options]="lineChartOptions" [legend]="lineChartLegend" [chartType]="lineChartType" [plugins]="lineChartPlugins"></canvas>
+                </div>
+                <div class="col-6">
+                    <canvas baseChart width="500" height="200" [datasets]="testContext.summary.get(r.key).PsnrDistChartData" [labels]="testContext.summary.get(r.key).lineChartLabels" [options]="lineChartOptions" [legend]="lineChartLegend" [chartType]="lineChartType" [plugins]="lineChartPlugins"></canvas>
+                </div>
             </div>
             <div class="card-body">
                 <div class="row text-center">
@@ -236,6 +251,13 @@
                             <div class="col-6">
                                 {{a.advConfidence}}
                             </div>
+                            <div class="col-6">
+                                Confidence in original class
+                            </div>
+                            <div class="col-6">
+                                {{a.confidenceInOriginalClass}}
+                            </div>
+
                             <div class="col-6">
                                 Euclidian distance
                             </div>
