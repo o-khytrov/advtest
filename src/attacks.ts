@@ -27,7 +27,7 @@ export class Attacks {
     public static fgsm(model, img, lbl, config) {
         // Loss function that measures how close the image is to the original class
         function loss(input) {
-            let loss=tf.metrics.categoricalCrossentropy(lbl, model.predict(input));  // Make input farther from original class
+            let loss = tf.metrics.categoricalCrossentropy(lbl, model.predict(input));  // Make input farther from original class
             return loss;
         }
 
@@ -413,95 +413,48 @@ export class Attacks {
         return result;
     }
 
-    private static perturb(xs: PerturbGen, img: number[]) {
-
-        let p = xs.position;
-        img[p] = xs.r / 255;
-        img[p + 1] = xs.g / 255;
-        img[p + 2] = xs.b / 255;
-
-        return img;
-
-    }
-
     public static DifferentialEvolution(model: tf.LayersModel, img: tf.Tensor, lbl: tf.Tensor, targeLbl: tf.Tensor) {
 
         let currentClass = lbl.argMax(1).dataSync()[0];
-        let targetClass = targeLbl.argMax(1).dataSync()[0];
+        //let targetClass = targeLbl.argMax(1).dataSync()[0];
         let populationSize = 100;
         let numberOfGeneratios = 20;
         let mutationRate = 0.01;
         let shape = img.shape;
         let d = img.dataSync();
-        let betstConf = 0;
-        let t;
 
-        for (let i = 0; i < 28; i++) {
-            for (let j = 0; j < 28; j++) {
-                console.log()
-                for (let p = 1; p < 256; p++) {
-
-                    let arr = Array.from(d);
-
-                    let tensor = tf.tensor(arr, shape);
-                    let prediction = model.predict(tensor) as tf.Tensor;
-                    let conf = prediction.dataSync()[targetClass];
-                    if (conf > betstConf) {
-                        betstConf = conf;
-                        t = arr;
-
-                    }
-                }
-            }
-        }
-        let result = new AttackResult();
-
-        result.advImg = tf.tensor(t, shape);
-
-        return result;
-
-        /*
         var solver = new Solver();
         var bounds = new Array<Bounds>();
-        bounds.push({ min: 0, max: 28 });
-        bounds.push({ min: 0, max: 28});
+        bounds.push({ min: 0, max: 783 });
         bounds.push({ min: 0, max: 255 });
-        // Solve
-        var optimizationResult = solver.start(function (values: number[], args) {
-            let p = new PerturbGen();
-            p.x = values[0];
-            p.y = values[1];
-            p.r = values[2];
-            p.position = (p.y * 28 + p.x); 
-            let a = Array.from(d);
-            a[p.position] = p.r;
-            let tensor = tf.tensor(a, shape);
-            let prediction = model.predict(tensor) as tf.Tensor;
+        let fintnessFunction = function (values: number[], args) {
+
+            let data = Array.from(d);
+            if (values[1] > 255) {
+                console.error("Invalid color value " + values[1])
+            }
+            var value = values[1] / 255;
+            var index = values[0];
+            data[index] = value;
+            let perturbedTensor = tf.tensor(data, img.shape);
+
+            let prediction = model.predict(perturbedTensor) as tf.Tensor;
             let conf = prediction.dataSync()[currentClass];
-            prediction.print();
-
             return conf;
-
-        }, bounds, 5);
+        }
+        // Solve
+        var optimizationResult = solver.optimize(fintnessFunction, bounds, 5);
 
         let values = optimizationResult.BestSolution;
-        console.log(optimizationResult);
-        let p = new PerturbGen();
-        p.x = values[0];
-        p.y = values[1];
-        p.r = values[2];
-        p.g = values[3];
-        p.b = values[4];
-        p.position = (p.y * shape[2] + p.x) * shape[3];
-
-        let perturb = Attacks.perturb(p, Array.from(d));
-
         let result = new AttackResult();
-
-        result.advImg = tf.tensor(perturb, shape);
+        let data = Array.from(d);
+        var value = values[1] / 255;
+        var index = values[0];
+        data[index] = value;
+        let perturbedTensor = tf.tensor(data, img.shape);
+        result.advImg = perturbedTensor;
 
         return result;
-        */
 
     }
 

@@ -13,7 +13,7 @@ export class Solver {
     _popSizeMultiplier: number = 40;
     _bounds: Bounds[];
     _initType: InitType = InitType.Random;
-    _maxIterations: number = 20;
+    _maxIterations: number = 100;
     _debug: boolean = true;
     _scaler: number[];
     _updataType: UpdateType = UpdateType.Immediate;
@@ -27,7 +27,7 @@ export class Solver {
     _AbsoluteTolerance: number;
     _RelativeTolerance: number;
 
-    start(fitnessFunction: Function, bounds: Bounds[], args) {
+    optimize(fitnessFunction: Function, bounds: Bounds[], args) {
         this._fitnessFunction = fitnessFunction;
         this._bounds = bounds;
 
@@ -63,8 +63,11 @@ export class Solver {
         for (var i = 0; i < popSize; i++) {
             population[i].Energy = this._fitnessFunction(population[i].values);
         }
+
+        console.table(population);
         population = this.PromoteLowestEnergy(population);
 
+        console.table(population);
 
         for (var step = 0; step < this._maxIterations; step++) {
             // Next generation step
@@ -230,18 +233,16 @@ export class Solver {
     }
 
     PromoteLowestEnergy(population: Individual[]) {
-        var bestIndex = 0;
-        var bestEnergy = population[0].Energy;
-        for (var index = 1; index < population.length; index++) {
-            if (population[index].Energy < bestEnergy) {
-                bestIndex = index;
-                bestEnergy = population[index].Energy;
+        function compare(a:Individual, b:Individual) {
+            if (a.Energy< b.Energy) {
+                return -1;
             }
+            if (a.Energy> b.Energy) {
+                return 1;
+            }
+            return 0;
         }
-        var temp = population[0];
-        population[0] = population[bestIndex];
-        population[bestIndex] = temp;
-        return population;
+        return population.sort(compare);
     }
 
     /*

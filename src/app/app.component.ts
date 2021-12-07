@@ -70,10 +70,10 @@ export class AppComponent implements OnInit {
     this.testContext.config.cw.iterations = 100;
     this.testContext.summary = new Map<string, AttackSummary>();
 
-    //this.testContext.diffEvol = true;
   }
 
   async ngOnInit() {
+
     this.savedModels = new Set<string>();
     for (var key in localStorage) {
       if (key.startsWith("tensorflowjs_models")) {
@@ -82,8 +82,6 @@ export class AppComponent implements OnInit {
       }
     }
 
-    //await this.loadModelFromLocalStorage("mnist");
-    //await this.runTest();
   }
 
   onFileChange(event) {
@@ -100,6 +98,12 @@ export class AppComponent implements OnInit {
 
     this.model = await tf.loadLayersModel(tf.io.browserFiles([this.i_model.nativeElement.files[0], this.i_weights.nativeElement.files[0]]));
     this.showModel();
+    // Monkey patch the mobilenet object to have a predict() method like a normal tf.LayersModel
+    this.model.predict = function (img) {
+      const logits1001 = this.predict(img);
+      return logits1001.slice([0, 1], [-1, 1000]).softmax();
+
+    }
 
     await this.loadDataset();
 
@@ -140,7 +144,7 @@ export class AppComponent implements OnInit {
       }
     }
 
-    this.showModel();
+    //this.showModel();
     this.testContext.readyForTest = true;
   }
 
@@ -173,6 +177,7 @@ export class AppComponent implements OnInit {
       let img = this.dataset[i].xs;
       let lbl = this.dataset[i].ys;
       let p_original = (this.model.predict(img) as tf.Tensor);
+      console.log(p_original.dataSync());
       let conf_original = p_original.max(1).dataSync()[0];
       let cl_original = p_original.argMax(1).dataSync()[0];
 
@@ -363,8 +368,8 @@ export class AppComponent implements OnInit {
 
     if (this.testContext.diffEvol) {
       attackName = Attacks.DifferentialEvolution.name;
-      this.BuildReportForTargeted(attackName);
-      await this.runTargeted(Attacks.DifferentialEvolution, this.testContext.config.fgsm);
+      this.BuildReport(attackName);
+      await this.runUntargeted(Attacks.DifferentialEvolution, this.testContext.config.fgsm);
     }
     var summary = this.testContext.summary.get(attackName);
     if (!summary) {
