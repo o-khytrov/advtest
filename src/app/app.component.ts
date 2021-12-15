@@ -72,8 +72,27 @@ export class AppComponent implements OnInit {
 
   }
 
-  async ngOnInit() {
+  async testCifar() {
 
+    await this.loadModelFromLocalStorage('cifar10');
+    this.testContext.fgsm = true;
+    for (let e = 0.001; e < 0.11; e += 0.005) {
+
+      this.testContext.config.fgsm.epsilon = e;
+      await this.runTest();
+    }
+
+
+  }
+  async testJsma() {
+    await this.loadModelFromLocalStorage('mnist');
+    this.testContext.jsma = true;
+    for (let i = 20; i < 21; i++) {
+      this.testContext.config.jsma.epsilon = i;
+      this.runTest();
+    }
+  }
+  async ngOnInit() {
     this.savedModels = new Set<string>();
     for (var key in localStorage) {
       if (key.startsWith("tensorflowjs_models")) {
@@ -81,7 +100,6 @@ export class AppComponent implements OnInit {
         this.savedModels.add(modelName);
       }
     }
-
   }
 
   onFileChange(event) {
@@ -99,11 +117,6 @@ export class AppComponent implements OnInit {
     this.model = await tf.loadLayersModel(tf.io.browserFiles([this.i_model.nativeElement.files[0], this.i_weights.nativeElement.files[0]]));
     this.showModel();
     // Monkey patch the mobilenet object to have a predict() method like a normal tf.LayersModel
-    this.model.predict = function (img) {
-      const logits1001 = this.predict(img);
-      return logits1001.slice([0, 1], [-1, 1000]).softmax();
-
-    }
 
     await this.loadDataset();
 
